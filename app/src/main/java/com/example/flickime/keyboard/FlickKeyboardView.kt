@@ -61,6 +61,12 @@ class FlickKeyboardView @JvmOverloads constructor(
 
         /** 次点候補として渡す最大件数。 */
         private const val MAX_ALTERNATES = 2
+
+        /** 指を置いた位置がキーの境界からこの割合(0〜0.5)以内なら、隣のキーだった可能性を考える。 */
+        private const val KEY_BOUNDARY_MARGIN_FRACTION = 0.22f
+
+        /** 隣のキーだった可能性は、同じキー内のフリック違いより確信度を割り引いて扱う。 */
+        private const val NEIGHBOR_KEY_WEIGHT = 0.6f
     }
 
     var listener: Listener? = null
@@ -113,6 +119,9 @@ class FlickKeyboardView @JvmOverloads constructor(
     private var activeCol = -1
     private var downX = 0f
     private var downY = 0f
+    // 押したキーの中で、指を置いた位置がどこだったか(0〜1)。境界付近かどうかの判定に使う。
+    private var downFracX = 0.5f
+    private var downFracY = 0.5f
     private var currentFlick = Flick.CENTER
     private var lastRow = -1
     private var lastCol = -1
@@ -215,13 +224,17 @@ class FlickKeyboardView @JvmOverloads constructor(
         val row = ((y / (height.toFloat() / rows)).toInt()).coerceIn(0, rows - 1)
         val cols = colCount(row)
         if (cols == 0) return
-        val col = (((x - offsetX) / (gridW / cols)).toInt()).coerceIn(0, cols - 1)
+        val colW = gridW / cols
+        val col = (((x - offsetX) / colW).toInt()).coerceIn(0, cols - 1)
+        val rowH = height.toFloat() / rows
 
         stopRepeat()
         activeRow = row
         activeCol = col
         downX = x
         downY = y
+        downFracX = ((x - offsetX - col * colW) / colW).coerceIn(0f, 1f)
+        downFracY = ((y - row * rowH) / rowH).coerceIn(0f, 1f)
         currentFlick = Flick.CENTER
         repeatFired = false
 
@@ -283,7 +296,10 @@ class FlickKeyboardView @JvmOverloads constructor(
         if (fired) return
         val spec = keyRows[row][col]
         val alternates = if (spec.type == KeyType.CHAR) {
-            flickAlternates(spec, flick, x - downX, y - downY)
+            (flickAlternates(spec, flick, x - downX, y - downY) + keyAlternates(row, col, flick))
+                .sortedByDescending { it.probability }
+                .distinctBy { it.text }
+                .take(MAX_ALTERNATES)
         } else {
             emptyList()
         }
@@ -304,6 +320,44 @@ class FlickKeyboardView @JvmOverloads constructor(
                 spec.output(candidateFlick)?.let { text -> FlickCandidate(text, probability) }
             }
             .take(MAX_ALTERNATES)
+            .toList()
+    }
+
+    /**
+     * 指を置いた位置が隣のキーとの境界に近かった場合、そもそも押そうとしていたのは
+     * 隣のキーだったかもしれないと見積もり、次点候補にする。
+     * フリック方向は本命キーで判定したものをそのまま隣のキーにも当てはめる
+     * （同じ向きに指を動かしたはずなので）。
+     */
+    private fun keyAlternates(row: Int, col: Int, chosen: Flick): List<FlickCandidate> {
+        val neighbors = mutableListOf<Pair<KeySpec, Float>>()
+        val cols = colCount(row)
+        if (downFracX < KEY_BOUNDARY_MARGIN_FRACTION && col > 0) {
+            val proximity = (KEY_BOUNDARY_MARGIN_FRACTION - downFracX) / KEY_BOUNDARY_MARGIN_FRACTION
+            neighbors += keyRows[row][col - 1] to proximity
+        }
+        if (downFracX > 1f - KEY_BOUNDARY_MARGIN_FRACTION && col < cols - 1) {
+            val proximity = (downFracX - (1f - KEY_BOUNDARY_MARGIN_FRACTION)) / KEY_BOUNDARY_MARGIN_FRACTION
+            neighbors += keyRows[row][col + 1] to proximity
+        }
+        val rows = keyRows.size
+        if (downFracY < KEY_BOUNDARY_MARGIN_FRACTION && row > 0 && col < colCount(row - 1)) {
+            val proximity = (KEY_BOUNDARY_MARGIN_FRACTION - downFracY) / KEY_BOUNDARY_MARGIN_FRACTION
+            neighbors += keyRows[row - 1][col] to proximity
+        }
+        if (downFracY > 1f - KEY_BOUNDARY_MARGIN_FRACTION && row < rows - 1 && col < colCount(row + 1)) {
+            val proximity = (downFracY - (1f - KEY_BOUNDARY_MARGIN_FRACTION)) / KEY_BOUNDARY_MARGIN_FRACTION
+            neighbors += keyRows[row + 1][col] to proximity
+        }
+
+        return neighbors
+            .asSequence()
+            .filter { (spec, _) -> spec.type == KeyType.CHAR }
+            .mapNotNull { (spec, proximity) ->
+                val text = spec.output(chosen) ?: spec.output(Flick.CENTER)
+                text?.let { FlickCandidate(it, proximity * NEIGHBOR_KEY_WEIGHT) }
+            }
+            .filter { it.probability >= MIN_ALTERNATE_PROBABILITY }
             .toList()
     }
 
