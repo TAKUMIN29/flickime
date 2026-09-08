@@ -6,6 +6,8 @@ import android.content.Context
 import android.content.Intent
 import android.inputmethodservice.InputMethodService
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.text.InputType
 import android.util.Log
 import android.view.KeyEvent
@@ -36,6 +38,7 @@ import com.example.flickime.keyboard.KeySpec
 import com.example.flickime.keyboard.KeyType
 import com.example.flickime.mozc.MozcEngine
 import com.example.flickime.mozc.MozcSession
+import java.util.concurrent.Executors
 import org.mozc.android.inputmethod.japanese.protobuf.ProtoCommands.KeyEvent as MozcKeyEvent
 import org.mozc.android.inputmethod.japanese.protobuf.ProtoCommands.Output as MozcOutput
 
@@ -53,7 +56,19 @@ class FlickImeService : InputMethodService(), FlickKeyboardView.Listener {
 
     companion object {
         private const val TAG = "FlickImeService"
+
+        /** 校正候補を作るために試す「押し間違いだったかもしれない読み」の最大数。 */
+        private const val MAX_CORRECTION_READINGS = 12
+
+        /** 実際に候補ストリップへ並べる校正候補の最大数。 */
+        private const val MAX_CORRECTIONS_SHOWN = 3
+
+        /** 連続入力中に毎回問い合わせないための待ち時間。 */
+        private const val CORRECTION_DELAY_MS = 160L
     }
+
+    /** 未確定文字列を構成するかな1文字と、その打鍵時に考えられた押し間違い候補。 */
+    private data class ComposedChar(val text: String, val alternates: List<FlickCandidate>)
 
     private lateinit var prefs: Prefs
     private lateinit var clipStore: ClipboardStore
@@ -90,6 +105,16 @@ class FlickImeService : InputMethodService(), FlickKeyboardView.Listener {
 
     /** 変換セッション開始時点のカーソル位置。確定/破棄時にここへ戻す。 */
     private var composingBase = -1
+
+    /** 未確定文字列を1文字ずつ記録したもの。校正候補の読みを組み立てるのに使う。 */
+    private val composedChars = mutableListOf<ComposedChar>()
+
+    /** 非同期で作った校正候補が、まだ現在の未確定文字列のものかを判定する世代番号。 */
+    private var correctionGeneration = 0
+    private val correctionExecutor = Executors.newSingleThreadExecutor()
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private val correctionRunnable = Runnable { runCorrections() }
+
     private var candidateStrip: LinearLayout? = null
     private var candidateScroll: View? = null
 
@@ -130,6 +155,8 @@ class FlickImeService : InputMethodService(), FlickKeyboardView.Listener {
 
     override fun onDestroy() {
         clipboardManager?.removePrimaryClipChangedListener(clipListener)
+        mainHandler.removeCallbacks(correctionRunnable)
+        correctionExecutor.shutdown()
         super.onDestroy()
     }
 
@@ -512,6 +539,7 @@ class FlickImeService : InputMethodService(), FlickKeyboardView.Listener {
         resetWord()
 
         mozcSession?.let {
+            composedChars.removeLastOrNull()
             applyMozcOutput(it.sendSpecialKey(MozcKeyEvent.SpecialKey.BACKSPACE))
             return
         }
@@ -709,6 +737,7 @@ class FlickImeService : InputMethodService(), FlickKeyboardView.Listener {
             mozcSession = session
             updateLayout() // CURSORキーを「変換」キーに差し替える
         }
+        composedChars += ComposedChar(text, alternates)
         applyMozcOutput(session.sendKanaCharacter(text, alternates))
     }
 
@@ -716,6 +745,10 @@ class FlickImeService : InputMethodService(), FlickKeyboardView.Listener {
     private fun replaceLastMozcChar(next: String) {
         val session = mozcSession ?: return
         session.sendSpecialKey(MozcKeyEvent.SpecialKey.BACKSPACE)
+        // 濁点付与や文字送りで意図的に変えた文字なので、押し間違い候補は引き継がない
+        if (composedChars.isNotEmpty()) {
+            composedChars[composedChars.lastIndex] = ComposedChar(next, emptyList())
+        }
         applyMozcOutput(session.sendKanaCharacter(next))
     }
 
@@ -780,6 +813,7 @@ class FlickImeService : InputMethodService(), FlickKeyboardView.Listener {
         selStart = expectedCursor
         selEnd = expectedCursor
         updateCandidateStrip(output)
+        scheduleCorrections()
     }
 
     private fun buildPreeditText(output: MozcOutput): String {
@@ -812,11 +846,116 @@ class FlickImeService : InputMethodService(), FlickKeyboardView.Listener {
         candidateScroll?.visibility = View.VISIBLE
     }
 
+    // ------------------------------------------------------------------
+    // 校正候補（フリックの押し間違いを想定した読みの変換）
+    // ------------------------------------------------------------------
+
+    /**
+     * 打鍵ごとに呼ばれる。連続入力中に毎回問い合わせると重いので、少し待ってからまとめて実行する。
+     */
+    private fun scheduleCorrections() {
+        correctionGeneration++
+        mainHandler.removeCallbacks(correctionRunnable)
+        mainHandler.postDelayed(correctionRunnable, CORRECTION_DELAY_MS)
+    }
+
+    private fun runCorrections() {
+        val chars = composedChars.toList()
+        if (chars.size < 2 || chars.none { it.alternates.isNotEmpty() }) return
+
+        val readings = correctionReadings(chars)
+        if (readings.isEmpty()) return
+
+        val literalReading = chars.joinToString("") { it.text }
+        val generation = correctionGeneration
+        correctionExecutor.execute {
+            val corrections = readings
+                .mapNotNull { MozcSession.predict(it) }
+                .filter { it.value != literalReading }
+                // 少ない文節にまとまって変換できた読みほど、狙っていた語である可能性が高い
+                .sortedBy { it.segmentCount }
+                .map { it.value }
+                .distinct()
+                .take(MAX_CORRECTIONS_SHOWN)
+            if (corrections.isEmpty()) return@execute
+            mainHandler.post {
+                if (generation == correctionGeneration) showCorrections(corrections)
+            }
+        }
+    }
+
+    /**
+     * 1文字だけ「押し間違いだったかもしれない文字」に差し替えた読みを、確率の高い順に作る。
+     *
+     * 例: 「てすのした」の「の」(な の下フリック)を、隣の た の下フリック「と」に差し替えて
+     * 「てすとした」を得る。これを Mozc に変換させると「テストした」が校正候補として出せる。
+     */
+    private fun correctionReadings(chars: List<ComposedChar>): List<List<String>> {
+        val base = chars.map { it.text }
+        return chars.indices
+            .flatMap { index -> chars[index].alternates.map { index to it } }
+            .sortedByDescending { (_, alternate) -> alternate.probability }
+            .take(MAX_CORRECTION_READINGS)
+            .map { (index, alternate) ->
+                base.toMutableList().also { it[index] = alternate.text }
+            }
+    }
+
+    /** 校正候補を、通常の変換候補の後ろにアクセント色で並べる。 */
+    private fun showCorrections(corrections: List<String>) {
+        val strip = candidateStrip ?: return
+        if (mozcSession == null) return
+
+        val shown = (0 until strip.childCount)
+            .mapNotNull { (strip.getChildAt(it) as? TextView)?.text?.toString() }
+            .toSet()
+        val density = resources.displayMetrics.density
+        var added = false
+        for (text in corrections) {
+            if (text in shown) continue
+            val tv = TextView(this).apply {
+                this.text = text
+                textSize = 16f
+                setPadding((12 * density).toInt(), 0, (12 * density).toInt(), 0)
+                gravity = android.view.Gravity.CENTER
+                setTextColor(ContextCompat.getColor(this@FlickImeService, R.color.ime_accent))
+                setOnClickListener { commitCorrection(text) }
+            }
+            strip.addView(
+                tv,
+                LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.MATCH_PARENT),
+            )
+            added = true
+        }
+        if (added) candidateScroll?.visibility = View.VISIBLE
+    }
+
+    /**
+     * 校正候補を確定する。Mozc の候補 id ではなく別の読みから作った文字列なので、
+     * セッションの候補選択ではなく未確定領域を直接置き換える。
+     */
+    private fun commitCorrection(text: String) {
+        val ic = currentInputConnection ?: return
+        val base = if (composingBase >= 0) composingBase else minOf(selStart, selEnd)
+        ic.beginBatchEdit()
+        ic.commitText(text, 1)
+        ic.endBatchEdit()
+        history.recordInsert(text)
+        expectedCursor = base + text.length
+        selStart = expectedCursor
+        selEnd = expectedCursor
+        endComposition()
+    }
+
     private fun endComposition() {
         val wasComposing = mozcSession != null
         mozcSession?.destroy()
         mozcSession = null
         composingBase = -1
+        composedChars.clear()
+        // 進行中の校正候補の問い合わせ結果を捨てる
+        correctionGeneration++
+        mainHandler.removeCallbacks(correctionRunnable)
         updateCandidateStrip(null)
         if (wasComposing) updateLayout() // 「変換」キーをCURSORキーに戻す
     }

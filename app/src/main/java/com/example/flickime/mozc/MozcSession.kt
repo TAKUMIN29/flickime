@@ -13,8 +13,46 @@ import org.mozc.android.inputmethod.japanese.protobuf.ProtoCommands.SessionComma
  * [KeyEvent.InputStyle.AS_IS] で送り込む。Mozc 側で読み（未確定文字列）として蓄積され、
  * 変換候補が生成される。
  */
+/**
+ * 変換候補1件。[segmentCount] は Mozc がその読みを何文節に分けたか。
+ * 少ないほど一続きの語として自然に解釈できたことを示すので、校正候補の並び順に使う。
+ */
+data class Prediction(val value: String, val segmentCount: Int)
+
 class MozcSession {
     private var sessionId: Long = 0L
+
+    companion object {
+        /** 次点候補に割り当てる確率の合計の上限。本命が埋もれないようにする。 */
+        private const val MAX_TOTAL_ALTERNATE_PROBABILITY = 0.4
+
+        /**
+         * [readingChars]（かな1文字ずつ）を使い捨てのセッションへ流し込み、
+         * 変換候補の上位 [limit] 件を返す。
+         *
+         * 「押し間違いだったかもしれない読み」を試しに変換させて校正候補を作るために使う。
+         * 入力中のセッションとは独立しているので、現在の未確定文字列には影響しない。
+         */
+        fun predict(readingChars: List<String>): Prediction? {
+            if (readingChars.isEmpty()) return null
+            val session = MozcSession()
+            return try {
+                session.create()
+                for (ch in readingChars) {
+                    session.sendKanaCharacter(ch)
+                }
+                // 実際に変換させる。未変換のままでは文節が常に1つで、
+                // 読みとしての自然さを比べる材料にならないため。
+                val converted = session.sendSpecialKey(KeyEvent.SpecialKey.SPACE)
+                if (!converted.hasPreedit()) return null
+                val value = converted.preedit.segmentList.joinToString("") { it.value }
+                if (value.isEmpty()) return null
+                Prediction(value, converted.preedit.segmentCount)
+            } finally {
+                session.destroy()
+            }
+        }
+    }
 
     fun create(): Output {
         val output = MozcEngine.eval(
@@ -48,7 +86,14 @@ class MozcSession {
 
         val singleCodePointAlternates = alternates.filter { it.text.codePointCount(0, it.text.length) == 1 }
         if (singleCodePointAlternates.isNotEmpty() && kana.codePointCount(0, kana.length) == 1) {
-            val alternateTotal = singleCodePointAlternates.sumOf { it.probability.toDouble() }
+            val rawTotal = singleCodePointAlternates.sumOf { it.probability.toDouble() }
+            // 次点が増えても本命の確率が潰れないよう、合計が上限を超えたら按分して縮める
+            val scale = if (rawTotal > MAX_TOTAL_ALTERNATE_PROBABILITY) {
+                MAX_TOTAL_ALTERNATE_PROBABILITY / rawTotal
+            } else {
+                1.0
+            }
+            val alternateTotal = rawTotal * scale
             val primaryProbability = (1.0 - alternateTotal).coerceIn(0.05, 1.0)
             keyBuilder.addProbableKeyEvent(
                 KeyEvent.ProbableKeyEvent.newBuilder()
@@ -59,7 +104,7 @@ class MozcSession {
                 keyBuilder.addProbableKeyEvent(
                     KeyEvent.ProbableKeyEvent.newBuilder()
                         .setKeyCode(alternate.text.codePointAt(0))
-                        .setProbability(alternate.probability.toDouble()),
+                        .setProbability(alternate.probability.toDouble() * scale),
                 )
             }
         }

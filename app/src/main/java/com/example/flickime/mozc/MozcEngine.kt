@@ -44,7 +44,13 @@ object MozcEngine {
 
     val isReady: Boolean get() = initialized
 
-    /** [input] を評価し、対応する [Output] を返す。 */
+    /**
+     * [input] を評価し、対応する [Output] を返す。
+     *
+     * ネイティブ側のセッションハンドラはスレッドセーフではないため、
+     * 入力中の変換と校正候補のバックグラウンド問い合わせが同時に走らないよう直列化する。
+     */
+    @Synchronized
     fun eval(input: Input): Output {
         val command = Command.newBuilder().setInput(input).build()
         val outBytes = MozcJNI.evalCommand(command.toByteArray())
