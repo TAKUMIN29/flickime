@@ -22,6 +22,25 @@ android {
         }
     }
 
+    // Mozc の libmozc.so は ABI ごとに約13〜16MBあるため、全ABI同梱の
+    // ユニバーサルAPKだけでなく ABI 別の軽量APKも生成する（サイドロード用）。
+    splits {
+        abi {
+            isEnable = true
+            reset()
+            include("armeabi-v7a", "arm64-v8a", "x86", "x86_64")
+            isUniversalApk = true
+        }
+    }
+
+    // Play Store 経由（App Bundle）で配布する場合も、端末のABIに合ったものだけが
+    // 配信されるようにしておく（AGPの既定値だが明示しておく）。
+    bundle {
+        abi.enableSplit = true
+        density.enableSplit = true
+        language.enableSplit = true
+    }
+
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
