@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    アプリの核となる操作（指を置いたキーから4方向へフリック）をそのままアイコン化したもの。
+    中央の角丸四角＝押さえているキー、4方向の三角＝フリック方向。
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M47,42 L61,42 A5,5 0 0 1 66,47 L66,61 A5,5 0 0 1 61,66 L47,66 A5,5 0 0 1 42,61 L42,47 A5,5 0 0 1 47,42 Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,26 L61,38 L47,38 Z M54,82 L47,70 L61,70 Z M26,54 L38,61 L38,47 Z M82,54 L70,47 L70,61 Z" />
+</vector>
