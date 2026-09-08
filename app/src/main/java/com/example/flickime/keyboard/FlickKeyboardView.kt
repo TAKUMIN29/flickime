@@ -218,10 +218,7 @@ class FlickKeyboardView @JvmOverloads constructor(
 
         val spec = keyRows[row][col]
         if (hapticEnabled) {
-            performHapticFeedback(
-                HapticFeedbackConstants.KEYBOARD_TAP,
-                HapticFeedbackConstants.FLAG_IGNORE_GLOBAL_SETTING,
-            )
+            performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
         }
         if (spec.hasFlickVariants()) showGuide(row, col, spec)
         if (spec.type == KeyType.BACKSPACE) startRepeat(spec)

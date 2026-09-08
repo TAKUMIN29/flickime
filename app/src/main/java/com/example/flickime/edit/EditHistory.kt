@@ -60,13 +60,13 @@ class EditHistory(
         if (text.isEmpty()) return
         redoStack.clear()
         val now = clock()
-        val last = undoStack.lastOrNull()
-        val mergeable = !mergeBlocked &&
-            last is EditOp.Insert &&
-            now - lastRecordedAt <= MERGE_WINDOW_MS &&
-            !last.text.endsWith("\n") &&
-            text != "\n"
-        if (mergeable && last is EditOp.Insert) {
+        val last = (undoStack.lastOrNull() as? EditOp.Insert)?.takeIf {
+            !mergeBlocked &&
+                now - lastRecordedAt <= MERGE_WINDOW_MS &&
+                !it.text.endsWith("\n") &&
+                text != "\n"
+        }
+        if (last != null) {
             last.text += text
         } else {
             push(EditOp.Insert(text))
@@ -80,11 +80,10 @@ class EditHistory(
         if (text.isEmpty()) return
         redoStack.clear()
         val now = clock()
-        val last = undoStack.lastOrNull()
-        val mergeable = !mergeBlocked &&
-            last is EditOp.Delete &&
-            now - lastRecordedAt <= MERGE_WINDOW_MS
-        if (mergeable && last is EditOp.Delete) {
+        val last = (undoStack.lastOrNull() as? EditOp.Delete)?.takeIf {
+            !mergeBlocked && now - lastRecordedAt <= MERGE_WINDOW_MS
+        }
+        if (last != null) {
             // 後ろから消していくので、先に消した分より前に付ける
             last.text = text + last.text
         } else {
