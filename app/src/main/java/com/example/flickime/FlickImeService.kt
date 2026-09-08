@@ -26,6 +26,7 @@ import com.example.flickime.clip.ClipItem
 import com.example.flickime.clip.ClipboardStore
 import com.example.flickime.edit.EditHistory
 import com.example.flickime.keyboard.Flick
+import com.example.flickime.keyboard.FlickCandidate
 import com.example.flickime.keyboard.FlickGuideView
 import com.example.flickime.keyboard.FlickKeyboardView
 import com.example.flickime.keyboard.KanaConverter
@@ -371,10 +372,10 @@ class FlickImeService : InputMethodService(), FlickKeyboardView.Listener {
     // キー入力
     // ------------------------------------------------------------------
 
-    override fun onKey(key: KeySpec, flick: Flick, tapCount: Int) {
+    override fun onKey(key: KeySpec, flick: Flick, tapCount: Int, alternates: List<FlickCandidate>) {
         val ic = currentInputConnection ?: return
         when (key.type) {
-            KeyType.CHAR -> handleChar(ic, key, flick, tapCount)
+            KeyType.CHAR -> handleChar(ic, key, flick, tapCount, alternates)
             KeyType.MODIFIER -> handleModifier(ic, flick)
             KeyType.BACKSPACE -> handleBackspace(ic)
             KeyType.SPACE -> when {
@@ -438,7 +439,13 @@ class FlickImeService : InputMethodService(), FlickKeyboardView.Listener {
         if (key.type == KeyType.BACKSPACE) handleBackspace(ic)
     }
 
-    private fun handleChar(ic: InputConnection, key: KeySpec, flick: Flick, tapCount: Int) {
+    private fun handleChar(
+        ic: InputConnection,
+        key: KeySpec,
+        flick: Flick,
+        tapCount: Int,
+        alternates: List<FlickCandidate> = emptyList(),
+    ) {
         // 同じキーの連打はフリックの候補を順に送る（ケータイ打ち）
         val previous = lastCommitted
         if (flick == Flick.CENTER && tapCount > 0 && previous != null && key.hasFlickVariants()) {
@@ -459,7 +466,7 @@ class FlickImeService : InputMethodService(), FlickKeyboardView.Listener {
 
         val text = key.output(flick) ?: key.output(Flick.CENTER) ?: return
         if (kanjiConversionEnabled && mode == KeyLayouts.Mode.KANA) {
-            sendMozcKana(text)
+            sendMozcKana(text, alternates)
             lastCommitted = text
             return
         }
@@ -693,7 +700,7 @@ class FlickImeService : InputMethodService(), FlickKeyboardView.Listener {
     }
 
     /** かな1文字を Mozc セッションへ送る。セッションが無ければここで開始する。 */
-    private fun sendMozcKana(text: String) {
+    private fun sendMozcKana(text: String, alternates: List<FlickCandidate> = emptyList()) {
         var session = mozcSession
         if (session == null) {
             composingBase = minOf(selStart, selEnd)
@@ -702,7 +709,7 @@ class FlickImeService : InputMethodService(), FlickKeyboardView.Listener {
             mozcSession = session
             updateLayout() // CURSORキーを「変換」キーに差し替える
         }
-        applyMozcOutput(session.sendKanaCharacter(text))
+        applyMozcOutput(session.sendKanaCharacter(text, alternates))
     }
 
     /** 直前の1文字を [next] に差し替える（濁点付与・文字送り用）。Mozc にはバックスペース＋再送で伝える。 */

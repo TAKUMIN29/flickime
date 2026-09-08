@@ -1,5 +1,6 @@
 package com.example.flickime.mozc
 
+import com.example.flickime.keyboard.FlickCandidate
 import org.mozc.android.inputmethod.japanese.protobuf.ProtoCommands.Input
 import org.mozc.android.inputmethod.japanese.protobuf.ProtoCommands.KeyEvent
 import org.mozc.android.inputmethod.japanese.protobuf.ProtoCommands.Output
@@ -32,13 +33,37 @@ class MozcSession {
         )
     }
 
-    /** かな1文字を未確定文字列として送る。 */
-    fun sendKanaCharacter(kana: String): Output {
-        val key = KeyEvent.newBuilder()
+    /**
+     * かな1文字を未確定文字列として送る。
+     *
+     * [alternates] はフリック判定が際どかった場合の次点候補（誤フリックの許容用）。
+     * `probable_key_event` として確率つきで一緒に送ることで、Mozc の変換候補に
+     * 「本当はこちらを狙っていたかもしれない」という可能性を反映してもらう。
+     * 1文字（サロゲートペアを除く単一コードポイント）の候補のみ対象。
+     */
+    fun sendKanaCharacter(kana: String, alternates: List<FlickCandidate> = emptyList()): Output {
+        val keyBuilder = KeyEvent.newBuilder()
             .setKeyString(kana)
             .setInputStyle(KeyEvent.InputStyle.AS_IS)
-            .build()
-        return sendKey(key)
+
+        val singleCodePointAlternates = alternates.filter { it.text.codePointCount(0, it.text.length) == 1 }
+        if (singleCodePointAlternates.isNotEmpty() && kana.codePointCount(0, kana.length) == 1) {
+            val alternateTotal = singleCodePointAlternates.sumOf { it.probability.toDouble() }
+            val primaryProbability = (1.0 - alternateTotal).coerceIn(0.05, 1.0)
+            keyBuilder.addProbableKeyEvent(
+                KeyEvent.ProbableKeyEvent.newBuilder()
+                    .setKeyCode(kana.codePointAt(0))
+                    .setProbability(primaryProbability),
+            )
+            for (alternate in singleCodePointAlternates) {
+                keyBuilder.addProbableKeyEvent(
+                    KeyEvent.ProbableKeyEvent.newBuilder()
+                        .setKeyCode(alternate.text.codePointAt(0))
+                        .setProbability(alternate.probability.toDouble()),
+                )
+            }
+        }
+        return sendKey(keyBuilder.build())
     }
 
     fun sendSpecialKey(specialKey: KeyEvent.SpecialKey): Output {

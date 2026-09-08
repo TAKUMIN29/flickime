@@ -13,7 +13,11 @@ import android.view.MotionEvent
 import android.view.View
 import androidx.core.content.ContextCompat
 import com.example.flickime.R
+import kotlin.math.PI
 import kotlin.math.abs
+import kotlin.math.atan2
+import kotlin.math.cos
+import kotlin.math.hypot
 
 /**
  * ケータイ配列のフリックキーボード。
@@ -31,8 +35,10 @@ class FlickKeyboardView @JvmOverloads constructor(
         /**
          * キー確定。
          * @param tapCount 同じキーを続けてタップした回数（0 始まり）。文字送りに使う。
+         * @param alternates フリック判定が際どかった場合の次点候補（確率降順）。
+         *   かな漢字変換エンジンに誤フリックを許容してもらうためのヒントとして使う。
          */
-        fun onKey(key: KeySpec, flick: Flick, tapCount: Int)
+        fun onKey(key: KeySpec, flick: Flick, tapCount: Int, alternates: List<FlickCandidate> = emptyList())
 
         /** 長押し中のリピート（削除キーなど）。 */
         fun onKeyRepeat(key: KeySpec)
@@ -49,6 +55,12 @@ class FlickKeyboardView @JvmOverloads constructor(
 
         /** 片手モード時のキー配列全体の幅（画面幅に対する比率）。 */
         private const val ONE_HANDED_WIDTH_FRACTION = 0.78f
+
+        /** 次点候補として渡す確率の下限（これ未満は無視する）。 */
+        private const val MIN_ALTERNATE_PROBABILITY = 0.08f
+
+        /** 次点候補として渡す最大件数。 */
+        private const val MAX_ALTERNATES = 2
     }
 
     var listener: Listener? = null
@@ -178,7 +190,7 @@ class FlickKeyboardView @JvmOverloads constructor(
             MotionEvent.ACTION_DOWN -> onDown(event.x, event.y)
             MotionEvent.ACTION_MOVE -> onMove(event.x, event.y)
             MotionEvent.ACTION_UP -> {
-                onUp()
+                onUp(event.x, event.y)
                 performClick()
             }
             MotionEvent.ACTION_CANCEL -> cancelTouch()
@@ -248,7 +260,7 @@ class FlickKeyboardView @JvmOverloads constructor(
         }
     }
 
-    private fun onUp() {
+    private fun onUp(x: Float, y: Float) {
         val row = activeRow
         val col = activeCol
         val flick = currentFlick
@@ -269,7 +281,64 @@ class FlickKeyboardView @JvmOverloads constructor(
         if (flick != Flick.CENTER) tapCount = -1
 
         if (fired) return
-        listener?.onKey(keyRows[row][col], flick, count)
+        val spec = keyRows[row][col]
+        val alternates = if (spec.type == KeyType.CHAR) {
+            flickAlternates(spec, flick, x - downX, y - downY)
+        } else {
+            emptyList()
+        }
+        listener?.onKey(spec, flick, count, alternates)
+    }
+
+    /**
+     * 指を離した位置から、本命([chosen])以外の方向にも「際どく」該当していた
+     * 可能性を確率として見積もり、次点候補の文字リストにする。
+     */
+    private fun flickAlternates(spec: KeySpec, chosen: Flick, dx: Float, dy: Float): List<FlickCandidate> {
+        return scoreFlicks(dx, dy)
+            .asSequence()
+            .filter { (candidateFlick, probability) ->
+                candidateFlick != chosen && probability >= MIN_ALTERNATE_PROBABILITY
+            }
+            .mapNotNull { (candidateFlick, probability) ->
+                spec.output(candidateFlick)?.let { text -> FlickCandidate(text, probability) }
+            }
+            .take(MAX_ALTERNATES)
+            .toList()
+    }
+
+    /**
+     * 5方向それぞれについて「これだった可能性」をスコア化する（確率の合計は1）。
+     * CENTER は移動距離がしきい値に近いほど、方向キーは実際の角度が近いほど高くなる。
+     */
+    private fun scoreFlicks(dx: Float, dy: Float): List<Pair<Flick, Float>> {
+        val r = hypot(dx, dy)
+        val scores = LinkedHashMap<Flick, Float>()
+        scores[Flick.CENTER] = (1f - r / flickThresholdPx).coerceIn(0f, 1f)
+
+        if (r > 1f) {
+            val theta = atan2(dy.toDouble(), dx.toDouble())
+            // しきい値をわずかに超えた程度では、方向キーの確信度もまだ低くしておく。
+            val magnitude = (r / (flickThresholdPx * 1.5f)).toDouble().coerceIn(0.0, 1.0)
+            val directionAngles = listOf(
+                Flick.RIGHT to 0.0,
+                Flick.DOWN to PI / 2,
+                Flick.LEFT to PI,
+                Flick.UP to -PI / 2,
+            )
+            for ((flick, angle) in directionAngles) {
+                var diff = theta - angle
+                while (diff > PI) diff -= 2 * PI
+                while (diff < -PI) diff += 2 * PI
+                val alignment = cos(diff).coerceAtLeast(0.0)
+                scores[flick] = (alignment * magnitude).toFloat()
+            }
+        } else {
+            for (flick in listOf(Flick.LEFT, Flick.UP, Flick.RIGHT, Flick.DOWN)) scores[flick] = 0f
+        }
+
+        val total = scores.values.sum().takeIf { it > 0f } ?: 1f
+        return scores.entries.map { it.key to (it.value / total) }.sortedByDescending { it.second }
     }
 
     private fun cancelTouch() {

@@ -42,6 +42,15 @@ enum class KeyType {
 }
 
 /**
+ * フリックの判定が際どかったときの「次点」候補。
+ *
+ * 指を離した位置から本命ではないと判定された方向でも、境界付近であれば
+ * 一定の確率で「本当はそちらを狙っていたかもしれない」とみなし、
+ * かな漢字変換エンジンへの確率付きヒントとして使う（誤フリックの許容）。
+ */
+data class FlickCandidate(val text: String, val probability: Float)
+
+/**
  * キー1つ分の定義。
  *
  * [chars] は [Flick.index] の順（CENTER, LEFT, UP, RIGHT, DOWN）で並べる。
