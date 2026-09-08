@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="ime_bg">#15171A</color>
+    <color name="ime_key_bg">#2B2E33</color>
+    <color name="ime_key_func_bg">#202226</color>
+    <color name="ime_key_pressed">#3D434B</color>
+    <color name="ime_text">#E8EAED</color>
+    <color name="ime_text_sub">#9AA0A6</color>
+    <color name="ime_accent">#6BA5F7</color>
+    <color name="ime_guide_bg">#33373D</color>
+    <color name="ime_guide_selected">#6BA5F7</color>
+    <color name="ime_guide_text_selected">#10131A</color>
+    <color name="ime_divider">#2E3238</color>
+</resources>

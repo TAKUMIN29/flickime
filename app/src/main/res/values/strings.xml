@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">フリックIME</string>
+    <string name="ime_name">フリックIME</string>
+    <string name="subtype_ja">日本語（フリック）</string>
+
+    <!-- ツールバー -->
+    <string name="tb_undo">元に戻す</string>
+    <string name="tb_redo">やり直し</string>
+    <string name="tb_clip">履歴</string>
+    <string name="tb_settings">設定</string>
+    <string name="resize_handle_glyph">▬▬▬</string>
+
+    <!-- クリップボードパネル -->
+    <string name="clip_title">クリップボード履歴</string>
+    <string name="clip_close">閉じる</string>
+    <string name="clip_clear">全消去</string>
+    <string name="clip_empty">履歴はまだありません。\nテキストをコピーするとここに溜まります。</string>
+    <string name="clip_pin">固定</string>
+    <string name="clip_unpin">固定を解除</string>
+    <string name="clip_delete">削除</string>
+    <string name="clip_cleared">固定していない履歴を消去しました</string>
+
+    <!-- 設定画面 -->
+    <string name="setup_title">セットアップ</string>
+    <string name="setup_step1">1. キーボードを有効にする</string>
+    <string name="setup_step1_desc">「言語と入力」の一覧で「フリックIME」をオンにしてください。</string>
+    <string name="setup_step1_btn">入力方法の設定を開く</string>
+    <string name="setup_step2">2. 入力方法を切り替える</string>
+    <string name="setup_step2_desc">使用するキーボードとして「フリックIME」を選びます。</string>
+    <string name="setup_step2_btn">キーボードを選択</string>
+    <string name="setup_step3">3. 動作確認</string>
+    <string name="setup_step3_desc">下の欄をタップして入力してみてください。</string>
+    <string name="setup_test_hint">ここで入力を試す</string>
+
+    <string name="pref_title">動作設定</string>
+    <string name="pref_clipboard">クリップボード履歴を記録する</string>
+    <string name="pref_clipboard_desc">コピーしたテキストを端末内にのみ保存します（外部送信は一切しません）。</string>
+    <string name="pref_haptic">キー入力時に振動する</string>
+    <string name="pref_flick_sensitivity">フリック感度（小さいほど反応しやすい）</string>
+    <string name="pref_key_height">キーの高さ</string>
+    <string name="pref_clear_clips">履歴をすべて削除</string>
+</resources>

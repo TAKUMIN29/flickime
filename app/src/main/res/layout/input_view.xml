@@ -1,0 +1,212 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    IME の入力ビュー全体。
+    guide（フリック候補の吹き出し）はツールバーの上まではみ出して描けるよう、
+    ルートの FrameLayout に重ねたオーバーレイとして配置している。
+-->
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/root"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:background="@color/ime_bg"
+        android:orientation="vertical">
+
+        <LinearLayout
+            android:id="@+id/toolbar"
+            android:layout_width="match_parent"
+            android:layout_height="44dp"
+            android:gravity="center_vertical"
+            android:orientation="horizontal"
+            android:paddingStart="4dp"
+            android:paddingEnd="4dp">
+
+            <TextView
+                android:id="@+id/btn_undo"
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:background="?android:attr/selectableItemBackground"
+                android:gravity="center"
+                android:minWidth="64dp"
+                android:paddingStart="10dp"
+                android:paddingEnd="10dp"
+                android:text="@string/tb_undo"
+                android:textColor="@color/ime_text"
+                android:textSize="13sp" />
+
+            <TextView
+                android:id="@+id/btn_redo"
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:background="?android:attr/selectableItemBackground"
+                android:gravity="center"
+                android:minWidth="64dp"
+                android:paddingStart="10dp"
+                android:paddingEnd="10dp"
+                android:text="@string/tb_redo"
+                android:textColor="@color/ime_text"
+                android:textSize="13sp" />
+
+            <View
+                android:layout_width="0dp"
+                android:layout_height="1dp"
+                android:layout_weight="1" />
+
+            <TextView
+                android:id="@+id/btn_clip"
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:background="?android:attr/selectableItemBackground"
+                android:gravity="center"
+                android:minWidth="56dp"
+                android:paddingStart="10dp"
+                android:paddingEnd="10dp"
+                android:text="@string/tb_clip"
+                android:textColor="@color/ime_text"
+                android:textSize="13sp" />
+
+            <TextView
+                android:id="@+id/btn_settings"
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:background="?android:attr/selectableItemBackground"
+                android:gravity="center"
+                android:minWidth="56dp"
+                android:paddingStart="10dp"
+                android:paddingEnd="10dp"
+                android:text="@string/tb_settings"
+                android:textColor="@color/ime_text_sub"
+                android:textSize="13sp" />
+        </LinearLayout>
+
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="@color/ime_divider" />
+
+        <!-- 上下ドラッグでキーボードの高さをその場で調整するハンドル。 -->
+        <TextView
+            android:id="@+id/resize_handle"
+            android:layout_width="match_parent"
+            android:layout_height="14dp"
+            android:background="@color/ime_bg"
+            android:gravity="center"
+            android:text="@string/resize_handle_glyph"
+            android:textColor="@color/ime_text_sub"
+            android:textSize="10sp" />
+
+        <!-- かな漢字変換(Mozc)の候補ストリップ。変換中のみ表示する。 -->
+        <HorizontalScrollView
+            android:id="@+id/candidate_scroll"
+            android:layout_width="match_parent"
+            android:layout_height="40dp"
+            android:background="@color/ime_bg"
+            android:scrollbars="none"
+            android:visibility="gone">
+
+            <LinearLayout
+                android:id="@+id/candidate_strip"
+                android:layout_width="wrap_content"
+                android:layout_height="match_parent"
+                android:orientation="horizontal" />
+        </HorizontalScrollView>
+
+        <FrameLayout
+            android:id="@+id/content"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
+
+            <com.example.flickime.keyboard.FlickKeyboardView
+                android:id="@+id/keyboard"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content" />
+
+            <!--
+                履歴パネル。キーボードは GONE ではなく INVISIBLE にして高さを保つので、
+                このパネルは match_parent でちょうどキーボード領域を覆う。
+            -->
+            <LinearLayout
+                android:id="@+id/clip_panel"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="@color/ime_bg"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="40dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingStart="12dp"
+                    android:paddingEnd="4dp">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/clip_title"
+                        android:textColor="@color/ime_text"
+                        android:textSize="13sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/btn_clip_clear"
+                        android:layout_width="wrap_content"
+                        android:layout_height="match_parent"
+                        android:background="?android:attr/selectableItemBackground"
+                        android:gravity="center"
+                        android:paddingStart="12dp"
+                        android:paddingEnd="12dp"
+                        android:text="@string/clip_clear"
+                        android:textColor="@color/ime_text_sub"
+                        android:textSize="13sp" />
+
+                    <TextView
+                        android:id="@+id/btn_clip_close"
+                        android:layout_width="wrap_content"
+                        android:layout_height="match_parent"
+                        android:background="?android:attr/selectableItemBackground"
+                        android:gravity="center"
+                        android:paddingStart="12dp"
+                        android:paddingEnd="12dp"
+                        android:text="@string/clip_close"
+                        android:textColor="@color/ime_accent"
+                        android:textSize="13sp" />
+                </LinearLayout>
+
+                <FrameLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="0dp"
+                    android:layout_weight="1">
+
+                    <androidx.recyclerview.widget.RecyclerView
+                        android:id="@+id/clip_list"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:clipToPadding="false"
+                        android:paddingBottom="4dp" />
+
+                    <TextView
+                        android:id="@+id/clip_empty"
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent"
+                        android:gravity="center"
+                        android:text="@string/clip_empty"
+                        android:textColor="@color/ime_text_sub"
+                        android:textSize="13sp"
+                        android:visibility="gone" />
+                </FrameLayout>
+            </LinearLayout>
+        </FrameLayout>
+    </LinearLayout>
+
+    <com.example.flickime.keyboard.FlickGuideView
+        android:id="@+id/guide"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent" />
+
+</FrameLayout>
