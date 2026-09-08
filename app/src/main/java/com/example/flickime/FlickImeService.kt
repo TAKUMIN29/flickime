@@ -328,7 +328,20 @@ class FlickImeService : InputMethodService(), FlickKeyboardView.Listener {
     }
 
     private fun updateLayout() {
-        keyboardView?.keyRows = KeyLayouts.of(mode)
+        keyboardView?.keyRows = if (mozcSession != null) layoutWithConvertKey(mode) else KeyLayouts.of(mode)
+    }
+
+    /**
+     * かな漢字変換の候補が出ている間だけ、CURSOR キー（改行の1つ上）を
+     * 「変換」キーに差し替えたレイアウトを返す（Gboard等と同じ配置）。
+     */
+    private fun layoutWithConvertKey(mode: KeyLayouts.Mode): List<List<KeySpec>> {
+        val base = KeyLayouts.of(mode)
+        val cursorRow = base.size - 2 // 改行(最終行)の1つ上の行
+        return base.mapIndexed { rowIndex, row ->
+            if (rowIndex != cursorRow) return@mapIndexed row
+            row.map { key -> if (key.type == KeyType.CURSOR) KeyLayouts.CONVERT else key }
+        }
     }
 
     private fun oneHandedModeFromPrefs(value: Int): FlickKeyboardView.OneHandedMode = when (value) {
@@ -412,6 +425,10 @@ class FlickImeService : InputMethodService(), FlickKeyboardView.Listener {
                     finalizeComposition()
                     openSettings()
                 }
+            }
+
+            KeyType.CONVERT -> mozcSession?.let {
+                applyMozcOutput(it.sendSpecialKey(MozcKeyEvent.SpecialKey.SPACE))
             }
         }
     }
@@ -683,6 +700,7 @@ class FlickImeService : InputMethodService(), FlickKeyboardView.Listener {
             session = MozcSession()
             session.create()
             mozcSession = session
+            updateLayout() // CURSORキーを「変換」キーに差し替える
         }
         applyMozcOutput(session.sendKanaCharacter(text))
     }
@@ -729,9 +747,17 @@ class FlickImeService : InputMethodService(), FlickKeyboardView.Listener {
             return
         }
 
+        if (!output.hasPreedit()) {
+            // result も preedit も無い応答（例: これ以上変換候補が無い読みでの
+            // 変換キー/スペース連打など）。Mozc 側で状態が変わっていないので何もしない。
+            return
+        }
+
         val preeditText = buildPreeditText(output)
         if (preeditText.isEmpty()) {
-            // commitText("") で composing 領域ごと消す（finishComposingText は残ってしまう）。
+            // preedit フィールド自体はあるが中身が空 = 本当に未確定文字列が無くなった
+            // （バックスペースで全部消した等）。commitText("") で composing 領域ごと消す
+            // （finishComposingText は表示中のテキストをそのまま確定してしまい消せない）。
             ic.commitText("", 1)
             val base = if (composingBase >= 0) composingBase else minOf(selStart, selEnd)
             expectedCursor = base
@@ -780,10 +806,12 @@ class FlickImeService : InputMethodService(), FlickKeyboardView.Listener {
     }
 
     private fun endComposition() {
+        val wasComposing = mozcSession != null
         mozcSession?.destroy()
         mozcSession = null
         composingBase = -1
         updateCandidateStrip(null)
+        if (wasComposing) updateLayout() // 「変換」キーをCURSORキーに戻す
     }
 
     /** 物理キーボードの Ctrl+Z / Ctrl+Y / Ctrl+Shift+V を拾う。 */

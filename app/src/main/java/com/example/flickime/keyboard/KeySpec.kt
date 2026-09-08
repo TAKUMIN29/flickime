@@ -36,6 +36,9 @@ enum class KeyType {
 
     /** 設定画面を開く。 */
     SETTINGS,
+
+    /** かな漢字変換(Mozc)の候補がある間だけ CURSOR キーの代わりに表示される変換キー。 */
+    CONVERT,
 }
 
 /**

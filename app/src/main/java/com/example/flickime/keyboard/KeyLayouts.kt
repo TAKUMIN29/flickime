@@ -36,6 +36,12 @@ object KeyLayouts {
         KeySpec(KeyType.MODIFIER, "小゛゜", listOf("小", "゛", "小", "゜", "小"), isFunction = false)
     private val CASE = KeySpec(KeyType.CASE, "a/A")
 
+    /**
+     * かな漢字変換(Mozc)の候補が出ている間だけ CURSOR キーの位置に差し替える変換キー。
+     * FlickImeService が変換中かどうかに応じてレイアウトを組み替える際に使う。
+     */
+    val CONVERT: KeySpec = KeySpec(KeyType.CONVERT, "変換")
+
     /** ひらがな（フリック）。 */
     val KANA: List<List<KeySpec>> = listOf(
         listOf(MODE, ch("あ", "い", "う", "え", "お"), ch("か", "き", "く", "け", "こ"), ch("さ", "し", "す", "せ", "そ"), BACKSPACE),
