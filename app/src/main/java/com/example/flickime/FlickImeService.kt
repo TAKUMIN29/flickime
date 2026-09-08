@@ -146,6 +146,18 @@ class FlickImeService : InputMethodService(), FlickKeyboardView.Listener {
         keyboardView = keyboard
         guideView = guide
 
+        // guide は match_parent にできない（ルートの wrap_content 計算に巻き込まれて
+        // ウィンドウが画面ほぼ全高に膨らんでしまうため）。実際に見えているキーボード
+        // 領域(content_root)と常に同じ高さになるよう、レイアウトのたびに追従させる。
+        val contentRoot = root.findViewById<View>(R.id.content_root)
+        contentRoot.viewTreeObserver.addOnGlobalLayoutListener {
+            val params = guide.layoutParams
+            if (params.height != contentRoot.height) {
+                params.height = contentRoot.height
+                guide.layoutParams = params
+            }
+        }
+
         btnUndo = root.findViewById<TextView>(R.id.btn_undo).also {
             it.setOnClickListener { performUndo() }
         }

@@ -10,6 +10,7 @@
     android:layout_height="wrap_content">
 
     <LinearLayout
+        android:id="@+id/content_root"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:background="@color/ime_bg"
@@ -204,9 +205,15 @@
         </FrameLayout>
     </LinearLayout>
 
+    <!--
+        高さは match_parent にしない。ルートが wrap_content のため、match_parent だと
+        システムがIMEウィンドウに許容する最大高さまで膨らみ、キーボードが画面上部に
+        表示されて下に大きな空白ができてしまう（実機で確認済みのバグ）。
+        実際の高さは FlickImeService が content_root に合わせて都度セットする。
+    -->
     <com.example.flickime.keyboard.FlickGuideView
         android:id="@+id/guide"
         android:layout_width="match_parent"
-        android:layout_height="match_parent" />
+        android:layout_height="wrap_content" />
 
 </FrameLayout>
