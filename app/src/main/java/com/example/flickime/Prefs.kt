@@ -43,8 +43,8 @@ class Prefs(context: Context) {
         get() = prefs.getInt(KEY_ONE_HANDED, 0)
         set(value) = prefs.edit().putInt(KEY_ONE_HANDED, value.coerceIn(0, 2)).apply()
 
-    /** かな漢字変換(Mozc)を使うかどうか。既定はオフ(直接入力)。 */
+    /** かな漢字変換(Mozc)を使うかどうか。既定はオン(予測変換・漢字変換を最初から利用可能に)。 */
     var kanjiConversionEnabled: Boolean
-        get() = prefs.getBoolean(KEY_KANJI_CONVERSION, false)
+        get() = prefs.getBoolean(KEY_KANJI_CONVERSION, true)
         set(value) = prefs.edit().putBoolean(KEY_KANJI_CONVERSION, value).apply()
 }

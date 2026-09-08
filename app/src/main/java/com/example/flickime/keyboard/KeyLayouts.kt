@@ -40,8 +40,8 @@ object KeyLayouts {
     val KANA: List<List<KeySpec>> = listOf(
         listOf(MODE, ch("あ", "い", "う", "え", "お"), ch("か", "き", "く", "け", "こ"), ch("さ", "し", "す", "せ", "そ"), BACKSPACE),
         listOf(SYMBOL, ch("た", "ち", "つ", "て", "と"), ch("な", "に", "ぬ", "ね", "の"), ch("は", "ひ", "ふ", "へ", "ほ"), SPACE_KANA),
-        listOf(IME_SWITCH, ch("ま", "み", "む", "め", "も"), ch("や", "「", "ゆ", "」", "よ"), ch("ら", "り", "る", "れ", "ろ"), ENTER),
-        listOf(SETTINGS, MODIFIER, ch("わ", "を", "ん", "ー", "〜"), ch("、", "。", "？", "！", "…"), CURSOR),
+        listOf(IME_SWITCH, ch("ま", "み", "む", "め", "も"), ch("や", "「", "ゆ", "」", "よ"), ch("ら", "り", "る", "れ", "ろ"), CURSOR),
+        listOf(SETTINGS, MODIFIER, ch("わ", "を", "ん", "ー", "〜"), ch("、", "。", "？", "！", "…"), ENTER),
     )
 
     /** 英字（フリック）。 */
@@ -65,14 +65,14 @@ object KeyLayouts {
             ch("p", "q", "r", "s", "7", label = "PQRS"),
             ch("t", "u", "v", "T", "8", label = "TUV"),
             ch("w", "x", "y", "z", "9", label = "WXYZ"),
-            ENTER,
+            CURSOR,
         ),
         listOf(
             SETTINGS,
             CASE,
             ch("'", "\"", "(", ")", ":", label = "'\"()"),
             ch(".", ",", "?", "!", "-", label = ".,?!"),
-            CURSOR,
+            ENTER,
         ),
     )
 
@@ -80,16 +80,16 @@ object KeyLayouts {
     val NUMBER: List<List<KeySpec>> = listOf(
         listOf(MODE, ch("1", "☆", "♪", "→", "-"), ch("2", "¥", "$", "€", "+"), ch("3", "%", "°", "#", "*"), BACKSPACE),
         listOf(SYMBOL, ch("4", "○", "*", "・", "/"), ch("5", "+", "×", "÷", "="), ch("6", "<", "=", ">", "^"), SPACE),
-        listOf(IME_SWITCH, ch("7", "「", "」", ":", "~"), ch("8", "〒", "々", "〆", "@"), ch("9", "^", "|", "\\", "_"), ENTER),
-        listOf(SETTINGS, ch("(", ")", "[", "]", "{"), ch("0", "〜", "…", "‥", "、"), ch(".", ",", "-", "/", ":"), CURSOR),
+        listOf(IME_SWITCH, ch("7", "「", "」", ":", "~"), ch("8", "〒", "々", "〆", "@"), ch("9", "^", "|", "\\", "_"), CURSOR),
+        listOf(SETTINGS, ch("(", ")", "[", "]", "{"), ch("0", "〜", "…", "‥", "、"), ch(".", ",", "-", "/", ":"), ENTER),
     )
 
     /** 記号パレット。 */
     val SYMBOLS: List<List<KeySpec>> = listOf(
         listOf(MODE, ch("、", "。", "！", "？", "…"), ch("「", "」", "『", "』", "・"), ch("(", ")", "[", "]", "{"), BACKSPACE),
         listOf(SYMBOL, ch("@", "#", "$", "%", "&"), ch("+", "-", "*", "/", "="), ch("<", ">", "≦", "≧", "≠"), SPACE),
-        listOf(IME_SWITCH, ch("^", "_", "|", "\\", "~"), ch("¥", "€", "£", "¢", "°"), ch("♪", "☆", "♡", "※", "→"), ENTER),
-        listOf(SETTINGS, ch("○", "●", "△", "▲", "□"), ch("■", "◇", "◆", "★", "×"), ch(":", ";", "'", "\"", "`"), CURSOR),
+        listOf(IME_SWITCH, ch("^", "_", "|", "\\", "~"), ch("¥", "€", "£", "¢", "°"), ch("♪", "☆", "♡", "※", "→"), CURSOR),
+        listOf(SETTINGS, ch("○", "●", "△", "▲", "□"), ch("■", "◇", "◆", "★", "×"), ch(":", ";", "'", "\"", "`"), ENTER),
     )
 
     enum class Mode { KANA, ALPHABET, NUMBER, SYMBOLS }
