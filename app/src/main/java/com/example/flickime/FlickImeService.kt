@@ -42,6 +42,7 @@ import com.example.flickime.mozc.CandidateAdapter
 import com.example.flickime.mozc.CandidateItem
 import com.example.flickime.mozc.MozcEngine
 import com.example.flickime.mozc.MozcSession
+import com.example.flickime.mozc.isSessionLost
 import java.util.concurrent.Executors
 import org.mozc.android.inputmethod.japanese.protobuf.ProtoCommands.KeyEvent as MozcKeyEvent
 import org.mozc.android.inputmethod.japanese.protobuf.ProtoCommands.Output as MozcOutput
@@ -698,6 +699,11 @@ class FlickImeService : InputMethodService(), FlickKeyboardView.Listener {
             val before = currentPreedit
             composedChars.removeLastOrNull()
             val output = it.sendSpecialKey(MozcKeyEvent.SpecialKey.BACKSPACE)
+            if (output.isSessionLost) {
+                // セッションが失われただけなので、表示中の文字は消さずに残す
+                recoverLostSession()
+                return
+            }
             if (!output.hasResult() && !output.hasPreedit()) {
                 // 最後の1文字を消すと Mozc は preedit を返さない。これは「状態が変わらなかった」
                 // 応答（変換キー連打など）と見分けがつかないので、バックスペースのときだけ
@@ -908,16 +914,44 @@ class FlickImeService : InputMethodService(), FlickKeyboardView.Listener {
 
     /** かな1文字を Mozc セッションへ送る。セッションが無ければここで開始する。 */
     private fun sendMozcKana(text: String, alternates: List<FlickCandidate> = emptyList()) {
-        var session = mozcSession
-        if (session == null) {
-            composingBase = minOf(selStart, selEnd)
-            session = MozcSession()
-            session.create(mobile = true)
-            mozcSession = session
-            updateLayout() // CURSORキーを「変換」キーに差し替える
+        var session = mozcSession ?: startMozcSession()
+        var output = session.sendKanaCharacter(text, alternates)
+        if (output.isSessionLost) {
+            // セッションが失われていた場合はここで打ち直す。そのまま流すと
+            // この1打鍵が黙って捨てられてしまう。
+            recoverLostSession()
+            session = startMozcSession()
+            output = session.sendKanaCharacter(text, alternates)
         }
         composedChars += ComposedChar(text, alternates)
-        applyMozcOutput(session.sendKanaCharacter(text, alternates))
+        applyMozcOutput(output)
+    }
+
+    private fun startMozcSession(): MozcSession {
+        composingBase = minOf(selStart, selEnd)
+        val session = MozcSession()
+        session.create(mobile = true)
+        mozcSession = session
+        updateLayout() // 空白キーを「変換」キーに差し替える
+        return session
+    }
+
+    /**
+     * 変換セッションが失われたときの後始末。
+     *
+     * 画面に出ている未確定文字列はそのまま確定させ、セッションだけ手放す。
+     * 失われたセッションに destroy を送っても意味がないので呼ばない。
+     */
+    private fun recoverLostSession() {
+        currentInputConnection?.finishComposingText()
+        mozcSession = null
+        composingBase = -1
+        currentPreedit = ""
+        composedChars.clear()
+        correctionGeneration++
+        mainHandler.removeCallbacks(correctionRunnable)
+        updateCandidateStrip(null)
+        updateLayout()
     }
 
     /** 直前の1文字を [next] に差し替える（濁点付与・文字送り用）。Mozc にはバックスペース＋再送で伝える。 */
@@ -952,6 +986,11 @@ class FlickImeService : InputMethodService(), FlickKeyboardView.Listener {
         val ic = currentInputConnection
         if (ic == null) {
             endComposition()
+            return
+        }
+
+        if (output.isSessionLost) {
+            recoverLostSession()
             return
         }
 
@@ -1104,14 +1143,22 @@ class FlickImeService : InputMethodService(), FlickKeyboardView.Listener {
         val literalReading = chars.joinToString("") { it.text }
         val generation = correctionGeneration
         correctionExecutor.execute {
-            val corrections = readings
-                .mapNotNull { MozcSession.predict(it) }
-                .filter { it.value != literalReading }
-                // 少ない文節にまとまって変換できた読みほど、狙っていた語である可能性が高い
-                .sortedBy { it.segmentCount }
-                .map { it.value }
-                .distinct()
-                .take(MAX_CORRECTIONS_SHOWN)
+            // 読みごとにセッションを作ると数が増えすぎて、変換エンジンが古いセッションを
+            // 整理する際に入力中のセッションまで巻き添えにする。1つを使い回す。
+            val scratch = MozcSession()
+            scratch.create()
+            val corrections = try {
+                readings
+                    .mapNotNull { MozcSession.predict(scratch, it) }
+                    .filter { it.value != literalReading }
+                    // 少ない文節にまとまって変換できた読みほど、狙っていた語である可能性が高い
+                    .sortedBy { it.segmentCount }
+                    .map { it.value }
+                    .distinct()
+                    .take(MAX_CORRECTIONS_SHOWN)
+            } finally {
+                scratch.destroy()
+            }
             if (corrections.isEmpty()) return@execute
             mainHandler.post {
                 if (generation == correctionGeneration) showCorrections(corrections)

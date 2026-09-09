@@ -14,6 +14,16 @@ import org.mozc.android.inputmethod.japanese.protobuf.ProtoCommands.SessionComma
 data class Prediction(val value: String, val segmentCount: Int)
 
 /**
+ * セッションが失われていて、送ったキーが受け付けられなかった応答かどうか。
+ *
+ * 変換エンジンはセッションを内部で整理することがあり、消えたセッションへ送ったキーは
+ * 「結果も未確定文字列も無い」応答として返ってくる。これを「状態が変わらなかった」応答と
+ * 取り違えると、打っても何も出ない状態のまま抜け出せなくなる。
+ */
+val Output.isSessionLost: Boolean
+    get() = hasErrorCode() && errorCode == Output.ErrorCode.SESSION_FAILURE
+
+/**
  * 1回の変換セッション（かな入力の開始〜確定）を表す。
  *
  * ローマ字変換は行わず、フリックキーボードが確定させた「かな1文字」をそのまま
@@ -37,11 +47,9 @@ class MozcSession {
          * 「押し間違いだったかもしれない読み」を試しに変換させて校正候補を作るために使う。
          * 入力中のセッションとは独立しているので、現在の未確定文字列には影響しない。
          */
-        fun predict(readingChars: List<String>): Prediction? {
+        fun predict(session: MozcSession, readingChars: List<String>): Prediction? {
             if (readingChars.isEmpty()) return null
-            val session = MozcSession()
             return try {
-                session.create()
                 for (ch in readingChars) {
                     session.sendKanaCharacter(ch)
                 }
@@ -53,7 +61,10 @@ class MozcSession {
                 if (value.isEmpty()) return null
                 Prediction(value, converted.preedit.segmentCount)
             } finally {
-                session.destroy()
+                // 次の読みのために空にする。セッションを読みごとに作り直すと
+                // 変換エンジンが古いセッションを整理してしまい、入力中のセッションを
+                // 巻き添えにすることがあるため、1つを使い回す。
+                session.revert()
             }
         }
     }
