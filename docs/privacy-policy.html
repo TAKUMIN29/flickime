@@ -1,0 +1,338 @@
+<title>フリックIME プライバシーポリシー</title>
+<style>
+  :root {
+    --paper: #f6f8fc;
+    --ink: #161b22;
+    --ink-soft: #5b6472;
+    --line: #dce3ee;
+    --accent: #2c7be5;
+    --accent-soft: #eaf2ff;
+    --accent-ink: #1c4e93;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --paper: #0e1420;
+      --ink: #e8ecf4;
+      --ink-soft: #99a3b5;
+      --line: #232b3b;
+      --accent: #6fa8f5;
+      --accent-soft: #16233a;
+      --accent-ink: #bcd7fb;
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #0e1420;
+    --ink: #e8ecf4;
+    --ink-soft: #99a3b5;
+    --line: #232b3b;
+    --accent: #6fa8f5;
+    --accent-soft: #16233a;
+    --accent-ink: #bcd7fb;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: "Noto Sans JP", "Hiragino Kaku Gothic ProN", "Yu Gothic", sans-serif;
+    line-height: 1.9;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .page {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 64px 24px 96px;
+  }
+
+  header.doc-head {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    margin-bottom: 12px;
+  }
+
+  .mark {
+    width: 44px;
+    height: 44px;
+    border-radius: 11px;
+    background: var(--accent);
+    flex: none;
+    display: grid;
+    place-items: center;
+  }
+  .mark svg { width: 26px; height: 26px; }
+
+  .head-text .app-name {
+    font-size: 13px;
+    color: var(--ink-soft);
+    letter-spacing: 0.06em;
+  }
+
+  h1 {
+    font-family: "Shippori Mincho", "Hiragino Mincho ProN", serif;
+    font-weight: 700;
+    font-size: clamp(28px, 5vw, 38px);
+    line-height: 1.4;
+    margin: 4px 0 28px;
+    text-wrap: balance;
+  }
+
+  .meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 28px;
+    font-size: 13px;
+    color: var(--ink-soft);
+    border-top: 1px solid var(--line);
+    border-bottom: 1px solid var(--line);
+    padding: 14px 0;
+    margin-bottom: 36px;
+  }
+  .meta dt { display: inline; font-weight: 500; }
+  .meta dd { display: inline; margin: 0 0 0 6px; }
+  .meta div + div { margin-left: 0; }
+
+  .summary {
+    background: var(--accent-soft);
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 22px 24px 24px;
+    margin-bottom: 48px;
+  }
+  .summary .label {
+    font-size: 12px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: var(--accent-ink);
+    margin: 0 0 12px;
+  }
+  .summary ul {
+    margin: 0;
+    padding: 0;
+    list-style: none;
+    display: grid;
+    gap: 10px;
+  }
+  .summary li {
+    display: flex;
+    gap: 10px;
+    font-size: 15px;
+  }
+  .summary li::before {
+    content: "";
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--accent);
+    margin-top: 9px;
+    flex: none;
+  }
+
+  article.clause {
+    margin-bottom: 40px;
+    scroll-margin-top: 24px;
+  }
+  article.clause h2 {
+    font-family: "Shippori Mincho", "Hiragino Mincho ProN", serif;
+    font-weight: 600;
+    font-size: 19px;
+    margin: 0 0 14px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--line);
+  }
+  article.clause h2 .num {
+    color: var(--accent);
+    font-weight: 700;
+    margin-right: 10px;
+  }
+  article.clause p { margin: 0 0 14px; font-size: 15.5px; }
+  article.clause p:last-child { margin-bottom: 0; }
+
+  table.data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+    margin: 4px 0 18px;
+  }
+  table.data-table th,
+  table.data-table td {
+    text-align: left;
+    padding: 10px 12px;
+    border-bottom: 1px solid var(--line);
+    vertical-align: top;
+  }
+  table.data-table th {
+    color: var(--ink-soft);
+    font-weight: 500;
+    font-size: 12.5px;
+    letter-spacing: 0.03em;
+  }
+
+  .tag {
+    display: inline-block;
+    font-size: 12px;
+    padding: 2px 9px;
+    border-radius: 999px;
+    background: var(--accent-soft);
+    color: var(--accent-ink);
+    font-weight: 500;
+  }
+
+  footer {
+    margin-top: 56px;
+    padding-top: 24px;
+    border-top: 1px solid var(--line);
+    font-size: 13px;
+    color: var(--ink-soft);
+  }
+  footer table {
+    border-collapse: collapse;
+    width: 100%;
+    margin-top: 12px;
+    font-size: 13px;
+  }
+  footer table td {
+    padding: 6px 12px 6px 0;
+    border-bottom: 1px solid var(--line);
+    color: var(--ink-soft);
+  }
+  footer table td:first-child { white-space: nowrap; color: var(--ink); }
+
+  a { color: var(--accent-ink); }
+
+  @media (max-width: 480px) {
+    .page { padding: 40px 18px 72px; }
+  }
+</style>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@600;700&family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+
+<div class="page">
+
+  <header class="doc-head">
+    <div class="mark">
+      <svg viewBox="0 0 108 108" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path fill="#fff" d="M47,42 L61,42 A5,5 0 0 1 66,47 L66,61 A5,5 0 0 1 61,66 L47,66 A5,5 0 0 1 42,61 L42,47 A5,5 0 0 1 47,42 Z" />
+        <path fill="#fff" d="M54,26 L61,38 L47,38 Z M54,82 L47,70 L61,70 Z M26,54 L38,61 L38,47 Z M82,54 L70,47 L70,61 Z" />
+      </svg>
+    </div>
+    <div class="head-text">
+      <div class="app-name">フリックIME</div>
+    </div>
+  </header>
+
+  <h1>プライバシーポリシー</h1>
+
+  <dl class="meta">
+    <div><dt>制定日</dt><dd>2026年9月10日</dd></div>
+    <div><dt>最終更新日</dt><dd>2026年9月10日</dd></div>
+    <div><dt>対象アプリ</dt><dd>フリックIME（Android 用日本語フリック入力キーボード）</dd></div>
+  </dl>
+
+  <div class="summary">
+    <p class="label">ひとことで言うと</p>
+    <ul>
+      <li>インターネット接続の権限を持たないため、通信そのものができません。</li>
+      <li>入力した文字も、変換の学習データも、端末の外へ送信されません。</li>
+      <li>かな漢字変換・誤入力の校正・辞書はすべて端末内で完結します。</li>
+      <li>クリップボード履歴とユーザー辞書は、設定画面からいつでも一括削除できます。</li>
+    </ul>
+  </div>
+
+  <article class="clause" id="c1">
+    <h2><span class="num">第1条</span>本ポリシーについて</h2>
+    <p>
+      本ポリシーは、フリックIME（以下「本アプリ」）における利用者情報の取り扱いについて定めるものです。
+      本アプリは Android の入力方法（IME）として動作し、利用者が入力する文字列に直接アクセスできる性質上、
+      その取り扱い方針を明確にする目的で本ポリシーを公開します。
+    </p>
+  </article>
+
+  <article class="clause" id="c2">
+    <h2><span class="num">第2条</span>提供者</h2>
+    <p>
+      本アプリは個人開発者（TAKUMIN29）が開発・提供しています。
+      法人としての運営ではなく、個人の非商用プロジェクトです。
+    </p>
+  </article>
+
+  <article class="clause" id="c3">
+    <h2><span class="num">第3条</span>取得する情報</h2>
+    <p>
+      本アプリは、氏名・メールアドレス・端末識別子・位置情報などの個人情報を取得しません。
+      また <span class="tag">INTERNET 権限を持たない</span> ため、いかなる情報も外部のサーバーへ送信できません。
+      入力中に生成される以下の情報は、すべて端末内のアプリ専用領域にのみ保存されます。
+    </p>
+    <table class="data-table">
+      <tr><th>情報</th><th>保存先</th><th>外部送信</th></tr>
+      <tr><td>クリップボード履歴</td><td>端末内 <code>clips.json</code></td><td>なし</td></tr>
+      <tr><td>ユーザー辞書（登録単語）</td><td>端末内 <code>user_dict.json</code></td><td>なし</td></tr>
+      <tr><td>キーボードの表示設定（高さ・感度など）</td><td>端末内 SharedPreferences</td><td>なし</td></tr>
+      <tr><td>変換中の未確定文字列・変換履歴</td><td>メモリ上のみ（保存されない）</td><td>なし</td></tr>
+    </table>
+  </article>
+
+  <article class="clause" id="c4">
+    <h2><span class="num">第4条</span>第三者提供・外部送信</h2>
+    <p>
+      本アプリは広告 SDK・解析（アナリティクス）SDK・クラッシュレポート送信のいずれも組み込んでいません。
+      通信を行う機能自体が存在しないため、取得した情報を第三者へ提供することはありません。
+    </p>
+  </article>
+
+  <article class="clause" id="c5">
+    <h2><span class="num">第5条</span>クリップボード履歴機能について</h2>
+    <p>
+      Android は既定の入力方法（IME）にのみ、バックグラウンドでのクリップボード読み取りを許可しています。
+      本アプリはこの仕組みを利用し、本アプリが選択されている間にコピーされた文字列を端末内に履歴として保存します。
+      本アプリが選択されていない間は記録されません。
+    </p>
+    <p>
+      Android 13 以降では、パスワードマネージャー等が「機微な情報」として明示したコピー内容を自動的に除外します。
+      履歴の記録は設定画面でいつでもオフにでき、保存済みの履歴も一括削除できます。
+    </p>
+  </article>
+
+  <article class="clause" id="c6">
+    <h2><span class="num">第6条</span>かな漢字変換エンジンについて</h2>
+    <p>
+      日本語のかな漢字変換には、オープンソースの変換エンジン
+      <a href="https://github.com/google/mozc" target="_blank" rel="noopener">Mozc</a>（BSD 3-Clause License）を
+      端末内に同梱し、完全にオフラインで動作させています。変換のために外部のサーバーへ問い合わせることはありません。
+    </p>
+  </article>
+
+  <article class="clause" id="c7">
+    <h2><span class="num">第7条</span>お子様のご利用について</h2>
+    <p>
+      本アプリは特定の年齢層を対象としたものではなく、子供のプライバシーを狙って情報を収集する機能もありません。
+      年齢確認の仕組みは設けていません。
+    </p>
+  </article>
+
+  <article class="clause" id="c8">
+    <h2><span class="num">第8条</span>本ポリシーの変更</h2>
+    <p>
+      本ポリシーの内容は、法令の変更や本アプリの機能追加に応じて予告なく改定される場合があります。
+      重要な変更がある場合は、本ページの最終更新日を更新してお知らせします。
+    </p>
+  </article>
+
+  <article class="clause" id="c9">
+    <h2><span class="num">第9条</span>お問い合わせ</h2>
+    <p>
+      本ポリシーおよび本アプリの情報の取り扱いに関するお問い合わせは、以下の連絡先までお願いいたします。
+    </p>
+    <p>連絡先：<a href="mailto:REPLACE_WITH_CONTACT_EMAIL">REPLACE_WITH_CONTACT_EMAIL</a></p>
+  </article>
+
+  <footer>
+    <div>改定履歴</div>
+    <table>
+      <tr><td>2026年9月10日</td><td>初版公開</td></tr>
+    </table>
+  </footer>
+
+</div>
