@@ -16,68 +16,93 @@
         android:background="@color/ime_bg"
         android:orientation="vertical">
 
+        <!--
+            ツールバー。ボタンを均等割りにして、端末の幅が狭くても
+            右端のボタンが画面外へはみ出さないようにしている。
+        -->
         <LinearLayout
             android:id="@+id/toolbar"
             android:layout_width="match_parent"
             android:layout_height="44dp"
             android:gravity="center_vertical"
             android:orientation="horizontal"
-            android:paddingStart="4dp"
-            android:paddingEnd="4dp">
+            android:paddingStart="2dp"
+            android:paddingEnd="2dp">
 
             <TextView
                 android:id="@+id/btn_undo"
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="match_parent"
+                android:layout_weight="1"
                 android:background="?android:attr/selectableItemBackground"
+                android:ellipsize="end"
                 android:gravity="center"
-                android:minWidth="64dp"
-                android:paddingStart="10dp"
-                android:paddingEnd="10dp"
+                android:maxLines="1"
                 android:text="@string/tb_undo"
                 android:textColor="@color/ime_text"
                 android:textSize="13sp" />
 
             <TextView
                 android:id="@+id/btn_redo"
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="match_parent"
+                android:layout_weight="1"
                 android:background="?android:attr/selectableItemBackground"
+                android:ellipsize="end"
                 android:gravity="center"
-                android:minWidth="64dp"
-                android:paddingStart="10dp"
-                android:paddingEnd="10dp"
+                android:maxLines="1"
                 android:text="@string/tb_redo"
                 android:textColor="@color/ime_text"
                 android:textSize="13sp" />
 
-            <View
+            <TextView
+                android:id="@+id/btn_select_all"
                 android:layout_width="0dp"
-                android:layout_height="1dp"
-                android:layout_weight="1" />
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:background="?android:attr/selectableItemBackground"
+                android:ellipsize="end"
+                android:gravity="center"
+                android:maxLines="1"
+                android:text="@string/tb_select_all"
+                android:textColor="@color/ime_text"
+                android:textSize="13sp" />
+
+            <TextView
+                android:id="@+id/btn_copy_all"
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:background="?android:attr/selectableItemBackground"
+                android:ellipsize="end"
+                android:gravity="center"
+                android:maxLines="1"
+                android:text="@string/tb_copy_all"
+                android:textColor="@color/ime_text"
+                android:textSize="13sp" />
 
             <TextView
                 android:id="@+id/btn_clip"
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="match_parent"
+                android:layout_weight="1"
                 android:background="?android:attr/selectableItemBackground"
+                android:ellipsize="end"
                 android:gravity="center"
-                android:minWidth="56dp"
-                android:paddingStart="10dp"
-                android:paddingEnd="10dp"
+                android:maxLines="1"
                 android:text="@string/tb_clip"
                 android:textColor="@color/ime_text"
                 android:textSize="13sp" />
 
             <TextView
                 android:id="@+id/btn_settings"
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="match_parent"
+                android:layout_weight="1"
                 android:background="?android:attr/selectableItemBackground"
+                android:ellipsize="end"
                 android:gravity="center"
-                android:minWidth="56dp"
-                android:paddingStart="10dp"
-                android:paddingEnd="10dp"
+                android:maxLines="1"
                 android:text="@string/tb_settings"
                 android:textColor="@color/ime_text_sub"
                 android:textSize="13sp" />

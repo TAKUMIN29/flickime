@@ -38,16 +38,6 @@ class SettingsActivity : AppCompatActivity() {
             setOnCheckedChangeListener { _, checked -> prefs.clipboardEnabled = checked }
         }
 
-        findViewById<CheckBox>(R.id.chk_haptic).apply {
-            isChecked = prefs.hapticEnabled
-            setOnCheckedChangeListener { _, checked -> prefs.hapticEnabled = checked }
-        }
-
-        findViewById<CheckBox>(R.id.chk_key_sound).apply {
-            isChecked = prefs.keySoundEnabled
-            setOnCheckedChangeListener { _, checked -> prefs.keySoundEnabled = checked }
-        }
-
         val keyHeightLabel = findViewById<TextView>(R.id.label_key_height)
         findViewById<SeekBar>(R.id.seek_key_height).apply {
             // progress 0..36 を 40..76dp に対応させる

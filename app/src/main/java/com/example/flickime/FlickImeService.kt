@@ -219,6 +219,8 @@ class FlickImeService : InputMethodService(), FlickKeyboardView.Listener {
         btnRedo = root.findViewById<TextView>(R.id.btn_redo).also {
             it.setOnClickListener { performRedo() }
         }
+        root.findViewById<TextView>(R.id.btn_select_all).setOnClickListener { selectAll() }
+        root.findViewById<TextView>(R.id.btn_copy_all).setOnClickListener { selectAllAndCopy() }
         root.findViewById<TextView>(R.id.btn_clip).setOnClickListener { toggleClipPanel() }
         root.findViewById<TextView>(R.id.btn_settings).setOnClickListener { openSettings() }
         setupResizeHandle(root.findViewById(R.id.resize_handle))
@@ -403,8 +405,6 @@ class FlickImeService : InputMethodService(), FlickKeyboardView.Listener {
         keyboardView?.let {
             it.rowHeightPx = prefs.keyHeightDp * density
             it.flickThresholdPx = prefs.flickThresholdDp * density
-            it.hapticEnabled = prefs.hapticEnabled
-            it.soundEnabled = prefs.keySoundEnabled
             it.oneHandedMode = oneHandedModeFromPrefs(prefs.oneHandedMode)
         }
         kanjiConversionEnabled = prefs.kanjiConversionEnabled
@@ -1240,6 +1240,25 @@ class FlickImeService : InputMethodService(), FlickKeyboardView.Listener {
     // ------------------------------------------------------------------
     // その他
     // ------------------------------------------------------------------
+
+    /**
+     * 入力欄のテキストをすべて選択する。
+     * 選択や複写はアプリ側の実装に任せるしかないので、テキスト操作のメニュー項目を
+     * そのまま実行してもらう（自前で全文を取得して置き換えるより確実）。
+     */
+    private fun selectAll() {
+        val ic = currentInputConnection ?: return
+        finalizeComposition()
+        ic.performContextMenuAction(android.R.id.selectAll)
+    }
+
+    /** すべて選択してコピーする。コピーした内容はクリップボード履歴にも入る。 */
+    private fun selectAllAndCopy() {
+        val ic = currentInputConnection ?: return
+        finalizeComposition()
+        ic.performContextMenuAction(android.R.id.selectAll)
+        ic.performContextMenuAction(android.R.id.copy)
+    }
 
     private fun switchInputMethod() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P && switchToNextInputMethod(false)) return

@@ -4,12 +4,10 @@ import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Paint
 import android.graphics.RectF
-import android.media.AudioManager
 import android.os.Handler
 import android.os.Looper
 import android.os.SystemClock
 import android.util.AttributeSet
-import android.view.HapticFeedbackConstants
 import android.view.MotionEvent
 import android.view.View
 import androidx.core.content.ContextCompat
@@ -55,12 +53,6 @@ class FlickKeyboardView @JvmOverloads constructor(
     }
 
     var listener: Listener? = null
-    var hapticEnabled: Boolean = true
-    var soundEnabled: Boolean = false
-
-    private val audioManager by lazy {
-        context.getSystemService(Context.AUDIO_SERVICE) as? AudioManager
-    }
 
     var oneHandedMode: OneHandedMode = OneHandedMode.OFF
         set(value) {
@@ -232,12 +224,6 @@ class FlickKeyboardView @JvmOverloads constructor(
         tapCount = if (row == lastRow && col == lastCol && now - lastUpAt <= TAP_CYCLE_MS) tapCount + 1 else 0
 
         val spec = keyRows[row][col]
-        if (hapticEnabled) {
-            performHapticFeedback(HapticFeedbackConstants.KEYBOARD_TAP)
-        }
-        if (soundEnabled) {
-            audioManager?.playSoundEffect(AudioManager.FX_KEYPRESS_STANDARD)
-        }
         if (spec.hasFlickVariants()) showGuide(row, col, spec)
         if (spec.type == KeyType.BACKSPACE ||
             spec.type == KeyType.CURSOR_LEFT ||

@@ -7,6 +7,8 @@
     <!-- ツールバー -->
     <string name="tb_undo">元に戻す</string>
     <string name="tb_redo">やり直し</string>
+    <string name="tb_select_all">全選択</string>
+    <string name="tb_copy_all">全コピー</string>
     <string name="tb_clip">履歴</string>
     <string name="tb_settings">設定</string>
     <string name="resize_handle_glyph">▬▬▬</string>
@@ -40,8 +42,6 @@
     <string name="pref_title">動作設定</string>
     <string name="pref_clipboard">クリップボード履歴を記録する</string>
     <string name="pref_clipboard_desc">コピーしたテキストを端末内にのみ保存します（外部送信は一切しません）。</string>
-    <string name="pref_haptic">キー入力時に振動する</string>
-    <string name="pref_key_sound">キー入力時に音を鳴らす</string>
     <string name="pref_flick_sensitivity">フリック感度（小さいほど反応しやすい）</string>
     <string name="pref_key_height">キーの高さ</string>
     <string name="pref_clear_clips">履歴をすべて削除</string>
