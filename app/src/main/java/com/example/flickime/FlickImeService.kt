@@ -540,7 +540,15 @@ class FlickImeService : InputMethodService(), FlickKeyboardView.Listener {
 
         mozcSession?.let {
             composedChars.removeLastOrNull()
-            applyMozcOutput(it.sendSpecialKey(MozcKeyEvent.SpecialKey.BACKSPACE))
+            val output = it.sendSpecialKey(MozcKeyEvent.SpecialKey.BACKSPACE)
+            if (!output.hasResult() && !output.hasPreedit()) {
+                // 最後の1文字を消すと Mozc は preedit を返さない。これは「状態が変わらなかった」
+                // 応答（変換キー連打など）と見分けがつかないので、バックスペースのときだけ
+                // 「未確定文字列が空になった」と解釈してここで閉じる。
+                clearComposition(ic)
+                return
+            }
+            applyMozcOutput(output)
             return
         }
 
@@ -795,15 +803,7 @@ class FlickImeService : InputMethodService(), FlickKeyboardView.Listener {
 
         val preeditText = buildPreeditText(output)
         if (preeditText.isEmpty()) {
-            // preedit フィールド自体はあるが中身が空 = 本当に未確定文字列が無くなった
-            // （バックスペースで全部消した等）。commitText("") で composing 領域ごと消す
-            // （finishComposingText は表示中のテキストをそのまま確定してしまい消せない）。
-            ic.commitText("", 1)
-            val base = if (composingBase >= 0) composingBase else minOf(selStart, selEnd)
-            expectedCursor = base
-            selStart = expectedCursor
-            selEnd = expectedCursor
-            endComposition()
+            clearComposition(ic)
             return
         }
 
@@ -814,6 +814,21 @@ class FlickImeService : InputMethodService(), FlickKeyboardView.Listener {
         selEnd = expectedCursor
         updateCandidateStrip(output)
         scheduleCorrections()
+    }
+
+    /**
+     * 未確定文字列を消してセッションを終える。
+     *
+     * `commitText("")` で composing 領域ごと消す。`finishComposingText` は表示中のテキストを
+     * そのまま確定してしまい、消せないため使わない。
+     */
+    private fun clearComposition(ic: InputConnection) {
+        ic.commitText("", 1)
+        val base = if (composingBase >= 0) composingBase else minOf(selStart, selEnd)
+        expectedCursor = base
+        selStart = expectedCursor
+        selEnd = expectedCursor
+        endComposition()
     }
 
     private fun buildPreeditText(output: MozcOutput): String {
