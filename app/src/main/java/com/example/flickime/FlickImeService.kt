@@ -21,6 +21,7 @@ import android.widget.HorizontalScrollView
 import android.widget.LinearLayout
 import android.widget.TextView
 import androidx.core.content.ContextCompat
+import androidx.recyclerview.widget.GridLayoutManager
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
 import com.example.flickime.clip.ClipAdapter
@@ -36,6 +37,8 @@ import com.example.flickime.keyboard.KanaModifier
 import com.example.flickime.keyboard.KeyLayouts
 import com.example.flickime.keyboard.KeySpec
 import com.example.flickime.keyboard.KeyType
+import com.example.flickime.mozc.CandidateAdapter
+import com.example.flickime.mozc.CandidateItem
 import com.example.flickime.mozc.MozcEngine
 import com.example.flickime.mozc.MozcSession
 import java.util.concurrent.Executors
@@ -65,6 +68,9 @@ class FlickImeService : InputMethodService(), FlickKeyboardView.Listener {
 
         /** 連続入力中に毎回問い合わせないための待ち時間。 */
         private const val CORRECTION_DELAY_MS = 160L
+
+        /** 候補一覧を展開したときのグリッドの列数。 */
+        private const val CANDIDATE_GRID_COLUMNS = 3
     }
 
     /** 未確定文字列を構成するかな1文字と、その打鍵時に考えられた押し間違い候補。 */
@@ -117,6 +123,12 @@ class FlickImeService : InputMethodService(), FlickKeyboardView.Listener {
 
     private var candidateStrip: LinearLayout? = null
     private var candidateScroll: View? = null
+    private var candidateRow: View? = null
+    private var candidatePanel: View? = null
+    private var candidateAdapter: CandidateAdapter? = null
+
+    /** 現在表示中の変換候補。ストリップと展開グリッドの両方がこれを描画する。 */
+    private var candidateItems: List<CandidateItem> = emptyList()
 
     private val clipListener = ClipboardManager.OnPrimaryClipChangedListener {
         if (!prefs.clipboardEnabled) return@OnPrimaryClipChangedListener
@@ -197,6 +209,17 @@ class FlickImeService : InputMethodService(), FlickKeyboardView.Listener {
         setupResizeHandle(root.findViewById(R.id.resize_handle))
         candidateScroll = root.findViewById<HorizontalScrollView>(R.id.candidate_scroll)
         candidateStrip = root.findViewById(R.id.candidate_strip)
+        candidateRow = root.findViewById(R.id.candidate_row)
+        candidatePanel = root.findViewById(R.id.candidate_panel)
+        root.findViewById<TextView>(R.id.btn_candidate_expand).setOnClickListener { toggleCandidatePanel() }
+        root.findViewById<TextView>(R.id.btn_candidate_close).setOnClickListener { hideCandidatePanel() }
+
+        val candidates = CandidateAdapter { selectCandidate(it) }
+        candidateAdapter = candidates
+        root.findViewById<RecyclerView>(R.id.candidate_list).apply {
+            layoutManager = GridLayoutManager(this@FlickImeService, CANDIDATE_GRID_COLUMNS)
+            this.adapter = candidates
+        }
 
         clipPanel = root.findViewById(R.id.clip_panel)
         clipEmptyView = root.findViewById(R.id.clip_empty)
@@ -741,7 +764,7 @@ class FlickImeService : InputMethodService(), FlickKeyboardView.Listener {
         if (session == null) {
             composingBase = minOf(selStart, selEnd)
             session = MozcSession()
-            session.create()
+            session.create(mobile = true)
             mozcSession = session
             updateLayout() // CURSORキーを「変換」キーに差し替える
         }
@@ -766,9 +789,14 @@ class FlickImeService : InputMethodService(), FlickKeyboardView.Listener {
         applyMozcOutput(session.submit())
     }
 
-    private fun selectCandidate(id: Int) {
+    private fun selectCandidate(item: CandidateItem) {
+        hideCandidatePanel()
+        if (item.isCorrection) {
+            commitCorrection(item.text)
+            return
+        }
         val session = mozcSession ?: return
-        applyMozcOutput(session.submitCandidate(id))
+        applyMozcOutput(session.submitCandidate(item.id))
     }
 
     /** Mozc からの応答を InputConnection と候補ストリップへ反映する。 */
@@ -836,29 +864,61 @@ class FlickImeService : InputMethodService(), FlickKeyboardView.Listener {
         return output.preedit.segmentList.joinToString("") { it.value }
     }
 
-    /** [output] が null、または候補が無ければストリップを隠す。 */
+    /** [output] が null、または候補が無ければ候補欄を隠す。 */
     private fun updateCandidateStrip(output: MozcOutput?) {
+        val window = output?.takeIf { it.hasCandidateWindow() }?.candidateWindow
+        val items = window?.candidateList.orEmpty().map { CandidateItem(it.value, it.id) }
+        showCandidates(items)
+    }
+
+    /** 候補リストを差し替えて、ストリップと展開グリッドの両方を描き直す。 */
+    private fun showCandidates(items: List<CandidateItem>) {
+        candidateItems = items
         val strip = candidateStrip ?: return
         strip.removeAllViews()
-        val window = output?.takeIf { it.hasCandidateWindow() }?.candidateWindow
-        if (window == null || window.candidateCount == 0) {
-            candidateScroll?.visibility = View.GONE
+        if (items.isEmpty()) {
+            candidateRow?.visibility = View.GONE
+            hideCandidatePanel()
             return
         }
+
         val density = resources.displayMetrics.density
-        for (candidate in window.candidateList) {
-            val id = candidate.id
+        for (item in items) {
             val tv = TextView(this).apply {
-                text = candidate.value
+                text = item.text
                 textSize = 16f
                 setPadding((12 * density).toInt(), 0, (12 * density).toInt(), 0)
                 gravity = android.view.Gravity.CENTER
-                setTextColor(ContextCompat.getColor(this@FlickImeService, R.color.ime_text))
-                setOnClickListener { selectCandidate(id) }
+                val color = if (item.isCorrection) R.color.ime_accent else R.color.ime_text
+                setTextColor(ContextCompat.getColor(this@FlickImeService, color))
+                setOnClickListener { selectCandidate(item) }
             }
-            strip.addView(tv, LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.MATCH_PARENT))
+            strip.addView(
+                tv,
+                LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.MATCH_PARENT),
+            )
         }
-        candidateScroll?.visibility = View.VISIBLE
+        candidateRow?.visibility = View.VISIBLE
+        candidateAdapter?.submit(items)
+    }
+
+    private fun toggleCandidatePanel() {
+        if (candidatePanel?.visibility == View.VISIBLE) hideCandidatePanel() else showCandidatePanel()
+    }
+
+    private fun showCandidatePanel() {
+        if (candidateItems.isEmpty()) return
+        hideClipPanel()
+        candidateAdapter?.submit(candidateItems)
+        candidatePanel?.visibility = View.VISIBLE
+        // GONE ではなく INVISIBLE。キーボードの高さを保ってパネルを重ねる。
+        keyboardView?.visibility = View.INVISIBLE
+    }
+
+    private fun hideCandidatePanel() {
+        if (candidatePanel?.visibility != View.VISIBLE) return
+        candidatePanel?.visibility = View.GONE
+        keyboardView?.visibility = View.VISIBLE
     }
 
     // ------------------------------------------------------------------
@@ -918,31 +978,13 @@ class FlickImeService : InputMethodService(), FlickKeyboardView.Listener {
 
     /** 校正候補を、通常の変換候補の後ろにアクセント色で並べる。 */
     private fun showCorrections(corrections: List<String>) {
-        val strip = candidateStrip ?: return
         if (mozcSession == null) return
-
-        val shown = (0 until strip.childCount)
-            .mapNotNull { (strip.getChildAt(it) as? TextView)?.text?.toString() }
-            .toSet()
-        val density = resources.displayMetrics.density
-        var added = false
-        for (text in corrections) {
-            if (text in shown) continue
-            val tv = TextView(this).apply {
-                this.text = text
-                textSize = 16f
-                setPadding((12 * density).toInt(), 0, (12 * density).toInt(), 0)
-                gravity = android.view.Gravity.CENTER
-                setTextColor(ContextCompat.getColor(this@FlickImeService, R.color.ime_accent))
-                setOnClickListener { commitCorrection(text) }
-            }
-            strip.addView(
-                tv,
-                LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.MATCH_PARENT),
-            )
-            added = true
-        }
-        if (added) candidateScroll?.visibility = View.VISIBLE
+        val shown = candidateItems.map { it.text }.toSet()
+        val added = corrections
+            .filter { it !in shown }
+            .map { CandidateItem(it, CandidateItem.CORRECTION_ID) }
+        if (added.isEmpty()) return
+        showCandidates(candidateItems + added)
     }
 
     /**
@@ -968,6 +1010,7 @@ class FlickImeService : InputMethodService(), FlickKeyboardView.Listener {
         mozcSession = null
         composingBase = -1
         composedChars.clear()
+        hideCandidatePanel()
         // 進行中の校正候補の問い合わせ結果を捨てる
         correctionGeneration++
         mainHandler.removeCallbacks(correctionRunnable)

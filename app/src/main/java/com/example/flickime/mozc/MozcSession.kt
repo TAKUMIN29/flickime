@@ -4,7 +4,14 @@ import com.example.flickime.keyboard.FlickCandidate
 import org.mozc.android.inputmethod.japanese.protobuf.ProtoCommands.Input
 import org.mozc.android.inputmethod.japanese.protobuf.ProtoCommands.KeyEvent
 import org.mozc.android.inputmethod.japanese.protobuf.ProtoCommands.Output
+import org.mozc.android.inputmethod.japanese.protobuf.ProtoCommands.Request
 import org.mozc.android.inputmethod.japanese.protobuf.ProtoCommands.SessionCommand
+
+/**
+ * 変換候補1件。[segmentCount] は Mozc がその読みを何文節に分けたか。
+ * 少ないほど一続きの語として自然に解釈できたことを示すので、校正候補の並び順に使う。
+ */
+data class Prediction(val value: String, val segmentCount: Int)
 
 /**
  * 1回の変換セッション（かな入力の開始〜確定）を表す。
@@ -13,16 +20,13 @@ import org.mozc.android.inputmethod.japanese.protobuf.ProtoCommands.SessionComma
  * [KeyEvent.InputStyle.AS_IS] で送り込む。Mozc 側で読み（未確定文字列）として蓄積され、
  * 変換候補が生成される。
  */
-/**
- * 変換候補1件。[segmentCount] は Mozc がその読みを何文節に分けたか。
- * 少ないほど一続きの語として自然に解釈できたことを示すので、校正候補の並び順に使う。
- */
-data class Prediction(val value: String, val segmentCount: Int)
-
 class MozcSession {
     private var sessionId: Long = 0L
 
     companion object {
+        /** 1ページに載せる変換候補の数。候補一覧の展開表示で選べる数になる。 */
+        private const val CANDIDATE_PAGE_SIZE = 32
+
         /** 次点候補に割り当てる確率の合計の上限。本命が埋もれないようにする。 */
         private const val MAX_TOTAL_ALTERNATE_PROBABILITY = 0.4
 
@@ -54,11 +58,32 @@ class MozcSession {
         }
     }
 
-    fun create(): Output {
+    /**
+     * セッションを開始する。
+     *
+     * [mobile] を立てると、モバイル IME 向けの挙動（変換キーを押さなくても候補を出す、
+     * 候補を多めに返す）を Mozc に要求する。候補一覧の展開表示で選べる候補を増やすため、
+     * 画面に出す入力セッションでのみ使う。校正候補を作る使い捨てセッションでは、
+     * 変換結果が変わって並び順の判断がぶれないよう既定のままにしておく。
+     */
+    fun create(mobile: Boolean = false): Output {
         val output = MozcEngine.eval(
             Input.newBuilder().setType(Input.CommandType.CREATE_SESSION).build(),
         )
         sessionId = output.id
+        if (mobile) {
+            MozcEngine.eval(
+                Input.newBuilder()
+                    .setType(Input.CommandType.SET_REQUEST)
+                    .setId(sessionId)
+                    .setRequest(
+                        Request.newBuilder()
+                            .setMixedConversion(true)
+                            .setCandidatePageSize(CANDIDATE_PAGE_SIZE),
+                    )
+                    .build(),
+            )
+        }
         return output
     }
 

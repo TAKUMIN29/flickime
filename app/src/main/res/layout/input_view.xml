@@ -100,20 +100,39 @@
             android:textSize="10sp" />
 
         <!-- かな漢字変換(Mozc)の候補ストリップ。変換中のみ表示する。 -->
-        <HorizontalScrollView
-            android:id="@+id/candidate_scroll"
+        <LinearLayout
+            android:id="@+id/candidate_row"
             android:layout_width="match_parent"
             android:layout_height="40dp"
             android:background="@color/ime_bg"
-            android:scrollbars="none"
+            android:orientation="horizontal"
             android:visibility="gone">
 
-            <LinearLayout
-                android:id="@+id/candidate_strip"
-                android:layout_width="wrap_content"
+            <HorizontalScrollView
+                android:id="@+id/candidate_scroll"
+                android:layout_width="0dp"
                 android:layout_height="match_parent"
-                android:orientation="horizontal" />
-        </HorizontalScrollView>
+                android:layout_weight="1"
+                android:scrollbars="none">
+
+                <LinearLayout
+                    android:id="@+id/candidate_strip"
+                    android:layout_width="wrap_content"
+                    android:layout_height="match_parent"
+                    android:orientation="horizontal" />
+            </HorizontalScrollView>
+
+            <!-- 候補が1行に収まらないときに、全候補をグリッドで開くボタン。 -->
+            <TextView
+                android:id="@+id/btn_candidate_expand"
+                android:layout_width="44dp"
+                android:layout_height="match_parent"
+                android:background="?android:attr/selectableItemBackground"
+                android:gravity="center"
+                android:text="@string/candidate_expand"
+                android:textColor="@color/ime_text_sub"
+                android:textSize="14sp" />
+        </LinearLayout>
 
         <FrameLayout
             android:id="@+id/content"
@@ -124,6 +143,56 @@
                 android:id="@+id/keyboard"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content" />
+
+            <!--
+                変換候補の一覧。履歴パネルと同じく、キーボード領域をそのまま覆う。
+            -->
+            <LinearLayout
+                android:id="@+id/candidate_panel"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:background="@color/ime_bg"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="40dp"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:paddingStart="12dp"
+                    android:paddingEnd="4dp">
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="@string/candidate_title"
+                        android:textColor="@color/ime_text"
+                        android:textSize="13sp"
+                        android:textStyle="bold" />
+
+                    <TextView
+                        android:id="@+id/btn_candidate_close"
+                        android:layout_width="wrap_content"
+                        android:layout_height="match_parent"
+                        android:background="?android:attr/selectableItemBackground"
+                        android:gravity="center"
+                        android:paddingStart="12dp"
+                        android:paddingEnd="12dp"
+                        android:text="@string/candidate_close"
+                        android:textColor="@color/ime_accent"
+                        android:textSize="13sp" />
+                </LinearLayout>
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/candidate_list"
+                    android:layout_width="match_parent"
+                    android:layout_height="0dp"
+                    android:layout_weight="1"
+                    android:clipToPadding="false"
+                    android:paddingBottom="4dp" />
+            </LinearLayout>
 
             <!--
                 履歴パネル。キーボードは GONE ではなく INVISIBLE にして高さを保つので、
