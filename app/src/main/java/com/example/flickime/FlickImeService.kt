@@ -123,6 +123,9 @@ class FlickImeService : InputMethodService(), FlickKeyboardView.Listener {
     /** 変換セッション開始時点のカーソル位置。確定/破棄時にここへ戻す。 */
     private var composingBase = -1
 
+    /** 画面に出している未確定文字列。削除が空振りしていないかの判定に使う。 */
+    private var currentPreedit = ""
+
     /** 未確定文字列を1文字ずつ記録したもの。校正候補の読みを組み立てるのに使う。 */
     private val composedChars = mutableListOf<ComposedChar>()
 
@@ -695,6 +698,7 @@ class FlickImeService : InputMethodService(), FlickKeyboardView.Listener {
         resetWord()
 
         mozcSession?.let {
+            val before = currentPreedit
             composedChars.removeLastOrNull()
             val output = it.sendSpecialKey(MozcKeyEvent.SpecialKey.BACKSPACE)
             if (!output.hasResult() && !output.hasPreedit()) {
@@ -705,6 +709,9 @@ class FlickImeService : InputMethodService(), FlickKeyboardView.Listener {
                 return
             }
             applyMozcOutput(output)
+            // 何を返されても削除は必ず前に進める。未確定文字列が縮まなかった場合は、
+            // 変換セッションごと畳んで「削除キーが効かない」状態に陥らないようにする。
+            if (mozcSession != null && currentPreedit == before) clearComposition(ic)
             return
         }
 
@@ -979,6 +986,7 @@ class FlickImeService : InputMethodService(), FlickKeyboardView.Listener {
             return
         }
 
+        currentPreedit = preeditText
         ic.setComposingText(preeditText, 1)
         if (composingBase < 0) composingBase = minOf(selStart, selEnd)
         expectedCursor = composingBase + preeditText.length
@@ -1164,6 +1172,7 @@ class FlickImeService : InputMethodService(), FlickKeyboardView.Listener {
         mozcSession?.destroy()
         mozcSession = null
         composingBase = -1
+        currentPreedit = ""
         composedChars.clear()
         hideCandidatePanel()
         // 進行中の校正候補の問い合わせ結果を捨てる
