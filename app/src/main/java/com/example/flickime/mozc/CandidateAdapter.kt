@@ -11,14 +11,14 @@ import com.example.flickime.R
 /**
  * 変換候補1件。
  *
- * [id] は Mozc の候補 id。誤フリックの校正候補は Mozc の候補ではないため
- * [CORRECTION_ID] を入れ、確定方法を呼び出し側で切り替える。
+ * [id] は Mozc の候補 id。誤フリックの校正候補やユーザー辞書の語は Mozc の候補ではないので
+ * [LOCAL_ID] を入れ、確定方法（候補選択か、文字列の直接確定か）を呼び出し側で切り替える。
  */
 data class CandidateItem(val text: String, val id: Int) {
-    val isCorrection: Boolean get() = id == CORRECTION_ID
+    val isLocal: Boolean get() = id == LOCAL_ID
 
     companion object {
-        const val CORRECTION_ID = -1
+        const val LOCAL_ID = -1
     }
 }
 
@@ -47,7 +47,7 @@ class CandidateAdapter(
     override fun onBindViewHolder(holder: Holder, position: Int) {
         val item = items[position]
         holder.text.text = item.text
-        val color = if (item.isCorrection) R.color.ime_accent else R.color.ime_text
+        val color = if (item.isLocal) R.color.ime_accent else R.color.ime_text
         holder.text.setTextColor(ContextCompat.getColor(holder.text.context, color))
         holder.itemView.setOnClickListener { onSelect(item) }
     }

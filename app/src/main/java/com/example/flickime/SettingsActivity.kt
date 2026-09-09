@@ -43,6 +43,11 @@ class SettingsActivity : AppCompatActivity() {
             setOnCheckedChangeListener { _, checked -> prefs.hapticEnabled = checked }
         }
 
+        findViewById<CheckBox>(R.id.chk_key_sound).apply {
+            isChecked = prefs.keySoundEnabled
+            setOnCheckedChangeListener { _, checked -> prefs.keySoundEnabled = checked }
+        }
+
         val keyHeightLabel = findViewById<TextView>(R.id.label_key_height)
         findViewById<SeekBar>(R.id.seek_key_height).apply {
             // progress 0..36 を 40..76dp に対応させる
@@ -69,6 +74,10 @@ class SettingsActivity : AppCompatActivity() {
                     flickLabel.text = getString(R.string.pref_flick_sensitivity) + "：${dp}dp"
                 }
             })
+        }
+
+        findViewById<Button>(R.id.btn_user_dict).setOnClickListener {
+            startActivity(Intent(this, com.example.flickime.dict.UserDictActivity::class.java))
         }
 
         findViewById<Button>(R.id.btn_clear_clips).setOnClickListener {

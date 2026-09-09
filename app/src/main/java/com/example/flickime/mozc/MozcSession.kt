@@ -136,9 +136,10 @@ class MozcSession {
         return sendKey(keyBuilder.build())
     }
 
-    fun sendSpecialKey(specialKey: KeyEvent.SpecialKey): Output {
-        val key = KeyEvent.newBuilder().setSpecialKey(specialKey).build()
-        return sendKey(key)
+    fun sendSpecialKey(specialKey: KeyEvent.SpecialKey, vararg modifiers: KeyEvent.ModifierKey): Output {
+        val builder = KeyEvent.newBuilder().setSpecialKey(specialKey)
+        for (modifier in modifiers) builder.addModifierKeys(modifier)
+        return sendKey(builder.build())
     }
 
     private fun sendKey(key: KeyEvent): Output = MozcEngine.eval(

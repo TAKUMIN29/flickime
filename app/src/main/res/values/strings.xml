@@ -41,7 +41,16 @@
     <string name="pref_clipboard">クリップボード履歴を記録する</string>
     <string name="pref_clipboard_desc">コピーしたテキストを端末内にのみ保存します（外部送信は一切しません）。</string>
     <string name="pref_haptic">キー入力時に振動する</string>
+    <string name="pref_key_sound">キー入力時に音を鳴らす</string>
     <string name="pref_flick_sensitivity">フリック感度（小さいほど反応しやすい）</string>
     <string name="pref_key_height">キーの高さ</string>
     <string name="pref_clear_clips">履歴をすべて削除</string>
+    <string name="pref_user_dict">ユーザー辞書を編集</string>
+    <string name="dict_title">ユーザー辞書</string>
+    <string name="dict_desc">よく使う語を「読み」つきで登録すると、変換候補の先頭に出ます。端末内にのみ保存します。</string>
+    <string name="dict_hint_reading">よみ（ひらがな）</string>
+    <string name="dict_hint_word">単語</string>
+    <string name="dict_add">登録</string>
+    <string name="dict_add_failed">読みと単語を入力してください（同じ組み合わせは登録済みです）</string>
+    <string name="dict_empty">登録された単語はありません</string>
 </resources>

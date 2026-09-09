@@ -13,6 +13,7 @@ class Prefs(context: Context) {
         private const val KEY_FLICK_THRESHOLD = "flick_threshold_dp"
         private const val KEY_ONE_HANDED = "one_handed_mode"
         private const val KEY_KANJI_CONVERSION = "kanji_conversion_enabled"
+        private const val KEY_KEY_SOUND = "key_sound_enabled"
 
         const val DEFAULT_KEY_HEIGHT_DP = 52
         const val DEFAULT_FLICK_THRESHOLD_DP = 22
@@ -42,6 +43,11 @@ class Prefs(context: Context) {
     var oneHandedMode: Int
         get() = prefs.getInt(KEY_ONE_HANDED, 0)
         set(value) = prefs.edit().putInt(KEY_ONE_HANDED, value.coerceIn(0, 2)).apply()
+
+    /** キー押下時に音を鳴らすかどうか。既定はオフ。 */
+    var keySoundEnabled: Boolean
+        get() = prefs.getBoolean(KEY_KEY_SOUND, false)
+        set(value) = prefs.edit().putBoolean(KEY_KEY_SOUND, value).apply()
 
     /** かな漢字変換(Mozc)を使うかどうか。既定はオン(予測変換・漢字変換を最初から利用可能に)。 */
     var kanjiConversionEnabled: Boolean

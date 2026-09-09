@@ -27,6 +27,7 @@ import androidx.recyclerview.widget.RecyclerView
 import com.example.flickime.clip.ClipAdapter
 import com.example.flickime.clip.ClipItem
 import com.example.flickime.clip.ClipboardStore
+import com.example.flickime.dict.UserDictionary
 import com.example.flickime.edit.EditHistory
 import com.example.flickime.keyboard.Flick
 import com.example.flickime.keyboard.FlickCandidate
@@ -71,6 +72,12 @@ class FlickImeService : InputMethodService(), FlickKeyboardView.Listener {
 
         /** 候補一覧を展開したときのグリッドの列数。 */
         private const val CANDIDATE_GRID_COLUMNS = 3
+
+        /** 単語削除で遡って調べる最大文字数。 */
+        private const val WORD_DELETE_LOOKBEHIND = 64
+
+        /** 変換候補の先頭に足すユーザー辞書の語の最大数。 */
+        private const val MAX_USER_DICT_CANDIDATES = 3
     }
 
     /** 未確定文字列を構成するかな1文字と、その打鍵時に考えられた押し間違い候補。 */
@@ -78,6 +85,7 @@ class FlickImeService : InputMethodService(), FlickKeyboardView.Listener {
 
     private lateinit var prefs: Prefs
     private lateinit var clipStore: ClipboardStore
+    private lateinit var userDict: UserDictionary
     private var clipboardManager: ClipboardManager? = null
 
     private val history = EditHistory()
@@ -104,6 +112,9 @@ class FlickImeService : InputMethodService(), FlickKeyboardView.Listener {
     private var wordOriginal: String? = null
     private var wordDisplayed: String? = null
     private var convertStage = 0
+
+    /** パスワード入力欄かどうか。変換や校正候補を通さないための判定に使う。 */
+    private var passwordField = false
 
     // かな漢字変換(Mozc)関連。
     private var kanjiConversionEnabled = false
@@ -156,6 +167,7 @@ class FlickImeService : InputMethodService(), FlickKeyboardView.Listener {
         super.onCreate()
         prefs = Prefs(this)
         clipStore = ClipboardStore.get(this)
+        userDict = UserDictionary.get(this)
         history.onChanged = { updateToolbarState() }
 
         clipboardManager = (getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager)?.also {
@@ -265,6 +277,22 @@ class FlickImeService : InputMethodService(), FlickKeyboardView.Listener {
             updateCandidateStrip(null)
         }
         mode = defaultModeFor(attribute)
+        passwordField = isPasswordField(attribute)
+    }
+
+    private fun isPasswordField(info: EditorInfo?): Boolean {
+        val inputType = info?.inputType ?: return false
+        if (inputType and InputType.TYPE_MASK_CLASS == InputType.TYPE_CLASS_NUMBER) {
+            return inputType and InputType.TYPE_MASK_VARIATION == InputType.TYPE_NUMBER_VARIATION_PASSWORD
+        }
+        return when (inputType and InputType.TYPE_MASK_VARIATION) {
+            InputType.TYPE_TEXT_VARIATION_PASSWORD,
+            InputType.TYPE_TEXT_VARIATION_WEB_PASSWORD,
+            InputType.TYPE_TEXT_VARIATION_VISIBLE_PASSWORD,
+            -> true
+
+            else -> false
+        }
     }
 
     override fun onStartInputView(info: EditorInfo?, restarting: Boolean) {
@@ -373,25 +401,47 @@ class FlickImeService : InputMethodService(), FlickKeyboardView.Listener {
             it.rowHeightPx = prefs.keyHeightDp * density
             it.flickThresholdPx = prefs.flickThresholdDp * density
             it.hapticEnabled = prefs.hapticEnabled
+            it.soundEnabled = prefs.keySoundEnabled
             it.oneHandedMode = oneHandedModeFromPrefs(prefs.oneHandedMode)
         }
         kanjiConversionEnabled = prefs.kanjiConversionEnabled
     }
 
     private fun updateLayout() {
-        keyboardView?.keyRows = if (mozcSession != null) layoutWithConvertKey(mode) else KeyLayouts.of(mode)
+        katakanaKeyShown = canConvertToKatakana()
+        keyboardView?.keyRows = decoratedLayout(mode)
     }
 
+    /** 左列の動的キーが今「カナ」を表示しているか。無駄なレイアウト組み直しを避けるために持つ。 */
+    private var katakanaKeyShown = false
+
+    /** カナ変換キーを出せる状態か（かなモードで、変換対象の文字列がある）。 */
+    private fun canConvertToKatakana(): Boolean =
+        mode == KeyLayouts.Mode.KANA && (mozcSession != null || wordOriginal != null)
+
     /**
-     * かな漢字変換の候補が出ている間だけ、CURSOR キー（改行の1つ上）を
-     * 「変換」キーに差し替えたレイアウトを返す（Gboard等と同じ配置）。
+     * 状況に応じてキーを差し替えたレイアウトを返す。
+     *
+     *  - 変換中は CURSOR キー（改行の1つ上）を「変換」キーにする（Gboard等と同じ配置）
+     *  - 左列の下から2番目は「123」「かな」「カナ」を状況で入れ替える（Simeji と同じ挙動）
      */
-    private fun layoutWithConvertKey(mode: KeyLayouts.Mode): List<List<KeySpec>> {
+    private fun decoratedLayout(mode: KeyLayouts.Mode): List<List<KeySpec>> {
         val base = KeyLayouts.of(mode)
-        val cursorRow = base.size - 2 // 改行(最終行)の1つ上の行
+        val converting = mozcSession != null
+        val cursorRow = base.size - 2
+        val dynamicKey = when {
+            canConvertToKatakana() -> KeyLayouts.KATAKANA_KEY
+            mode == KeyLayouts.Mode.NUMBER -> KeyLayouts.KANA_KEY
+            else -> KeyLayouts.NUMBER_KEY
+        }
         return base.mapIndexed { rowIndex, row ->
-            if (rowIndex != cursorRow) return@mapIndexed row
-            row.map { key -> if (key.type == KeyType.CURSOR) KeyLayouts.CONVERT else key }
+            row.map { key ->
+                when {
+                    key.type == KeyType.NUM_OR_KANA -> dynamicKey
+                    converting && rowIndex == cursorRow && key.type == KeyType.CURSOR -> KeyLayouts.CONVERT
+                    else -> key
+                }
+            }
         }
     }
 
@@ -427,7 +477,7 @@ class FlickImeService : InputMethodService(), FlickKeyboardView.Listener {
         when (key.type) {
             KeyType.CHAR -> handleChar(ic, key, flick, tapCount, alternates)
             KeyType.MODIFIER -> handleModifier(ic, flick)
-            KeyType.BACKSPACE -> handleBackspace(ic)
+            KeyType.BACKSPACE -> if (flick == Flick.LEFT) handleDeleteWord(ic) else handleBackspace(ic)
             KeyType.SPACE -> when {
                 mozcSession != null -> applyMozcOutput(mozcSession!!.sendSpecialKey(MozcKeyEvent.SpecialKey.SPACE))
                 flick == Flick.UP -> handleConvert(ic)
@@ -470,6 +520,33 @@ class FlickImeService : InputMethodService(), FlickKeyboardView.Listener {
                 switchInputMethod()
                 resetWord()
             }
+
+            KeyType.NUM_OR_KANA -> when {
+                flick == Flick.UP -> {
+                    finalizeComposition()
+                    switchInputMethod()
+                    resetWord()
+                }
+
+                // F7 が「未確定文字列をカタカナに変換」。SpecialKey.KATAKANA は
+                // ハードウェアのカタカナキー相当で、入力モードを切り替えるだけなので使わない。
+                mozcSession != null ->
+                    applyMozcOutput(mozcSession!!.sendSpecialKey(MozcKeyEvent.SpecialKey.F7))
+
+                // かな漢字変換オフでも、直前に打った語はカタカナに変換できる
+                canConvertToKatakana() -> handleConvert(ic)
+
+                else -> {
+                    finalizeComposition()
+                    mode = if (mode == KeyLayouts.Mode.NUMBER) {
+                        KeyLayouts.Mode.KANA
+                    } else {
+                        KeyLayouts.Mode.NUMBER
+                    }
+                    updateLayout()
+                    resetWord()
+                }
+            }
             KeyType.SETTINGS -> when (flick) {
                 Flick.UP -> cycleOneHandedMode()
                 else -> {
@@ -478,8 +555,24 @@ class FlickImeService : InputMethodService(), FlickKeyboardView.Listener {
                 }
             }
 
-            KeyType.CONVERT -> mozcSession?.let {
-                applyMozcOutput(it.sendSpecialKey(MozcKeyEvent.SpecialKey.SPACE))
+            // 左右で文節を移動、上下で文節の区切りを伸縮する（Mozc 本来のキー操作に合わせている）
+            KeyType.CONVERT -> mozcSession?.let { session ->
+                val output = when (flick) {
+                    Flick.LEFT -> session.sendSpecialKey(MozcKeyEvent.SpecialKey.LEFT)
+                    Flick.RIGHT -> session.sendSpecialKey(MozcKeyEvent.SpecialKey.RIGHT)
+                    Flick.UP -> session.sendSpecialKey(
+                        MozcKeyEvent.SpecialKey.RIGHT,
+                        MozcKeyEvent.ModifierKey.SHIFT,
+                    )
+
+                    Flick.DOWN -> session.sendSpecialKey(
+                        MozcKeyEvent.SpecialKey.LEFT,
+                        MozcKeyEvent.ModifierKey.SHIFT,
+                    )
+
+                    Flick.CENTER -> session.sendSpecialKey(MozcKeyEvent.SpecialKey.SPACE)
+                }
+                applyMozcOutput(output)
             }
         }
     }
@@ -515,7 +608,8 @@ class FlickImeService : InputMethodService(), FlickKeyboardView.Listener {
         }
 
         val text = key.output(flick) ?: key.output(Flick.CENTER) ?: return
-        if (kanjiConversionEnabled && mode == KeyLayouts.Mode.KANA) {
+        // パスワード欄では変換エンジンに文字を渡さない（学習・予測に残さないため）
+        if (kanjiConversionEnabled && mode == KeyLayouts.Mode.KANA && !passwordField) {
             sendMozcKana(text, alternates)
             lastCommitted = text
             return
@@ -555,6 +649,45 @@ class FlickImeService : InputMethodService(), FlickKeyboardView.Listener {
         if (replaceBeforeCursor(ic, before, newText)) {
             lastCommitted = newText
         }
+    }
+
+    /**
+     * 削除キーの左フリック。変換中なら未確定文字列ごと、そうでなければ単語単位で消す。
+     *
+     * 日本語には単語の区切りが無いので、カーソル直前の文字と同じ種別
+     * （ひらがな/カタカナ/漢字/英数/それ以外）が続く範囲をひとまとまりとみなす。
+     */
+    private fun handleDeleteWord(ic: InputConnection) {
+        lastCommitted = null
+        resetWord()
+
+        if (mozcSession != null) {
+            clearComposition(ic)
+            return
+        }
+
+        val before = ic.getTextBeforeCursor(WORD_DELETE_LOOKBEHIND, 0)?.toString()
+        if (before.isNullOrEmpty()) return
+        val kind = charKind(before.last())
+        val deleteLength = before.reversed().takeWhile { charKind(it) == kind }.length
+        val deleted = before.takeLast(deleteLength)
+
+        ic.beginBatchEdit()
+        ic.deleteSurroundingText(deleteLength, 0)
+        ic.endBatchEdit()
+        history.recordDelete(deleted)
+        expectedCursor = (minOf(selStart, selEnd) - deleteLength).coerceAtLeast(0)
+        selStart = expectedCursor
+        selEnd = expectedCursor
+    }
+
+    private fun charKind(c: Char): Int = when {
+        c in 'ぁ'..'ゖ' || c == 'ー' -> 0
+        c in 'ァ'..'ヺ' -> 1
+        c in '一'..'龥' || c == '々' -> 2
+        c.isLetterOrDigit() -> 3
+        c.isWhitespace() -> 4
+        else -> 5
     }
 
     private fun handleBackspace(ic: InputConnection) {
@@ -708,6 +841,7 @@ class FlickImeService : InputMethodService(), FlickKeyboardView.Listener {
         val next = wordOriginal.orEmpty() + text
         wordOriginal = next
         wordDisplayed = next
+        refreshDynamicKey()
     }
 
     /** 文字送り・濁点付与など、直前の1文字を差し替えたときに追跡を更新する。 */
@@ -727,6 +861,16 @@ class FlickImeService : InputMethodService(), FlickKeyboardView.Listener {
         wordOriginal = null
         wordDisplayed = null
         convertStage = 0
+        refreshDynamicKey()
+    }
+
+    /**
+     * 左列の動的キーの表示が変わるときだけレイアウトを組み直す。
+     * 打鍵のたびに組み直すと、入力中のキーのタッチ追跡が切れてしまうため。
+     */
+    private fun refreshDynamicKey() {
+        val show = canConvertToKatakana()
+        if (show != katakanaKeyShown) updateLayout()
     }
 
     /** 空白キーの上フリック。直前の語を ひらがな → カタカナ → 半角カタカナ の順に巡回させる。 */
@@ -791,7 +935,7 @@ class FlickImeService : InputMethodService(), FlickKeyboardView.Listener {
 
     private fun selectCandidate(item: CandidateItem) {
         hideCandidatePanel()
-        if (item.isCorrection) {
+        if (item.isLocal) {
             commitCorrection(item.text)
             return
         }
@@ -867,8 +1011,19 @@ class FlickImeService : InputMethodService(), FlickKeyboardView.Listener {
     /** [output] が null、または候補が無ければ候補欄を隠す。 */
     private fun updateCandidateStrip(output: MozcOutput?) {
         val window = output?.takeIf { it.hasCandidateWindow() }?.candidateWindow
-        val items = window?.candidateList.orEmpty().map { CandidateItem(it.value, it.id) }
-        showCandidates(items)
+        val fromMozc = window?.candidateList.orEmpty().map { CandidateItem(it.value, it.id) }
+        showCandidates(userDictCandidates() + fromMozc)
+    }
+
+    /**
+     * 現在の読みに前方一致するユーザー辞書の語。
+     * Mozc の候補より前に出して、登録した語が埋もれないようにする。
+     */
+    private fun userDictCandidates(): List<CandidateItem> {
+        if (composedChars.isEmpty()) return emptyList()
+        val reading = composedChars.joinToString("") { it.text }
+        return userDict.lookup(reading, MAX_USER_DICT_CANDIDATES)
+            .map { CandidateItem(it, CandidateItem.LOCAL_ID) }
     }
 
     /** 候補リストを差し替えて、ストリップと展開グリッドの両方を描き直す。 */
@@ -889,7 +1044,7 @@ class FlickImeService : InputMethodService(), FlickKeyboardView.Listener {
                 textSize = 16f
                 setPadding((12 * density).toInt(), 0, (12 * density).toInt(), 0)
                 gravity = android.view.Gravity.CENTER
-                val color = if (item.isCorrection) R.color.ime_accent else R.color.ime_text
+                val color = if (item.isLocal) R.color.ime_accent else R.color.ime_text
                 setTextColor(ContextCompat.getColor(this@FlickImeService, color))
                 setOnClickListener { selectCandidate(item) }
             }
@@ -982,7 +1137,7 @@ class FlickImeService : InputMethodService(), FlickKeyboardView.Listener {
         val shown = candidateItems.map { it.text }.toSet()
         val added = corrections
             .filter { it !in shown }
-            .map { CandidateItem(it, CandidateItem.CORRECTION_ID) }
+            .map { CandidateItem(it, CandidateItem.LOCAL_ID) }
         if (added.isEmpty()) return
         showCandidates(candidateItems + added)
     }
