@@ -231,3 +231,12 @@ JVM 単体テストが 51 件ある（`./gradlew testDebugUnitTest`）。
 - `KanaConverterTest` — カタカナ/半角カタカナ変換テーブル
 - `EditHistoryTest` — undo/redo のマージ挙動、選択範囲削除、外部編集検知など
   （`InputConnection` は Mockito 委譲 + カーソル位置つきの実バッファでフェイク化）
+
+## ライセンス
+
+このリポジトリ自体のコードは [MIT License](LICENSE) の下で公開している。
+
+ただし `app/src/main/jniLibs/*/libmozc.so`、`app/src/main/assets/mozc.data`、
+および `app/libs/*.jar`（Mozc の protobuf 定義）は
+[google/mozc](https://github.com/google/mozc) 由来で BSD 3-Clause License の下にある。
+これらのビルド成果物を再配布する場合は Mozc 側のライセンス表示義務が別途かかる。
