@@ -239,7 +239,12 @@ class FlickKeyboardView @JvmOverloads constructor(
             audioManager?.playSoundEffect(AudioManager.FX_KEYPRESS_STANDARD)
         }
         if (spec.hasFlickVariants()) showGuide(row, col, spec)
-        if (spec.type == KeyType.BACKSPACE) startRepeat(spec)
+        if (spec.type == KeyType.BACKSPACE ||
+            spec.type == KeyType.CURSOR_LEFT ||
+            spec.type == KeyType.CURSOR_RIGHT
+        ) {
+            startRepeat(spec)
+        }
         invalidate()
     }
 

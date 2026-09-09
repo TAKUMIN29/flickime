@@ -38,4 +38,21 @@ class KanaConverterTest {
         assertEquals("ガッコウ", katakana)
         assertEquals("ｶﾞｯｺｳ", hankaku)
     }
+
+    @Test
+    fun `半角英数字と記号を全角にする`() {
+        assertEquals("ＡＢＣ", KanaConverter.toFullWidthAscii("ABC"))
+        assertEquals("１２３", KanaConverter.toFullWidthAscii("123"))
+        assertEquals("＠＃＆", KanaConverter.toFullWidthAscii("@#&"))
+    }
+
+    @Test
+    fun `半角スペースは全角スペースにする`() {
+        assertEquals("あ　い", KanaConverter.toFullWidthAscii("あ い"))
+    }
+
+    @Test
+    fun `全角の文字はそのまま返す`() {
+        assertEquals("あＡ１", KanaConverter.toFullWidthAscii("あＡ１"))
+    }
 }

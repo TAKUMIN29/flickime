@@ -418,6 +418,12 @@ class FlickImeService : InputMethodService(), FlickKeyboardView.Listener {
     /** 左列の動的キーが今「カナ」を表示しているか。無駄なレイアウト組み直しを避けるために持つ。 */
     private var katakanaKeyShown = false
 
+    /** 全角で入力するモードか。空白キーが全角スペースを入れるかの判定に使う。 */
+    private fun usesFullWidth(): Boolean = mode == KeyLayouts.Mode.KANA ||
+        mode == KeyLayouts.Mode.ALPHABET_FULL ||
+        mode == KeyLayouts.Mode.NUMBER_FULL ||
+        mode == KeyLayouts.Mode.SYMBOLS
+
     /** カナ変換キーを出せる状態か（かなモードで、変換対象の文字列がある）。 */
     private fun canConvertToKatakana(): Boolean =
         mode == KeyLayouts.Mode.KANA && (mozcSession != null || wordOriginal != null)
@@ -425,23 +431,23 @@ class FlickImeService : InputMethodService(), FlickKeyboardView.Listener {
     /**
      * 状況に応じてキーを差し替えたレイアウトを返す。
      *
-     *  - 変換中は CURSOR キー（改行の1つ上）を「変換」キーにする（Gboard等と同じ配置）
-     *  - 左列の下から2番目は「123」「かな」「カナ」を状況で入れ替える（Simeji と同じ挙動）
+     *  - 変換中は空白キー（改行の1つ上）を「変換」キーにする（Gboard等と同じ配置）
+     *  - 左列の下から2番目は「123」「１２３」「カナ」を状況で入れ替える（Simeji と同じ挙動）
      */
     private fun decoratedLayout(mode: KeyLayouts.Mode): List<List<KeySpec>> {
         val base = KeyLayouts.of(mode)
         val converting = mozcSession != null
-        val cursorRow = base.size - 2
+        val convertRow = base.size - 2
         val dynamicKey = when {
             canConvertToKatakana() -> KeyLayouts.KATAKANA_KEY
-            mode == KeyLayouts.Mode.NUMBER -> KeyLayouts.KANA_KEY
+            mode == KeyLayouts.Mode.NUMBER -> KeyLayouts.NUMBER_FULL_KEY
             else -> KeyLayouts.NUMBER_KEY
         }
         return base.mapIndexed { rowIndex, row ->
             row.map { key ->
                 when {
                     key.type == KeyType.NUM_OR_KANA -> dynamicKey
-                    converting && rowIndex == cursorRow && key.type == KeyType.CURSOR -> KeyLayouts.CONVERT
+                    converting && rowIndex == convertRow && key.type == KeyType.SPACE -> KeyLayouts.CONVERT
                     else -> key
                 }
             }
@@ -485,17 +491,14 @@ class FlickImeService : InputMethodService(), FlickKeyboardView.Listener {
                 mozcSession != null -> applyMozcOutput(mozcSession!!.sendSpecialKey(MozcKeyEvent.SpecialKey.SPACE))
                 flick == Flick.UP -> handleConvert(ic)
                 else -> {
-                    commit(ic, if (mode == KeyLayouts.Mode.KANA) "　" else " ")
+                    commit(ic, if (usesFullWidth()) "　" else " ")
                     resetWord()
                 }
             }
 
             KeyType.ENTER -> handleEnter(ic)
-            KeyType.CURSOR -> when (flick) {
-                Flick.LEFT -> moveCursor(KeyEvent.KEYCODE_DPAD_LEFT)
-                Flick.RIGHT -> moveCursor(KeyEvent.KEYCODE_DPAD_RIGHT)
-                else -> Unit
-            }
+            KeyType.CURSOR_LEFT -> moveCursor(KeyEvent.KEYCODE_DPAD_LEFT)
+            KeyType.CURSOR_RIGHT -> moveCursor(KeyEvent.KEYCODE_DPAD_RIGHT)
 
             KeyType.MODE -> when (flick) {
                 Flick.UP -> toggleKanjiConversion()
@@ -507,23 +510,24 @@ class FlickImeService : InputMethodService(), FlickKeyboardView.Listener {
                 }
             }
 
-            KeyType.SYMBOL -> {
-                finalizeComposition()
-                mode = if (mode == KeyLayouts.Mode.SYMBOLS) KeyLayouts.Mode.KANA else KeyLayouts.Mode.SYMBOLS
-                updateLayout()
-                resetWord()
+            KeyType.SYMBOL -> when (flick) {
+                Flick.UP -> cycleOneHandedMode()
+                else -> {
+                    finalizeComposition()
+                    mode = if (mode == KeyLayouts.Mode.SYMBOLS) {
+                        KeyLayouts.Mode.KANA
+                    } else {
+                        KeyLayouts.Mode.SYMBOLS
+                    }
+                    updateLayout()
+                    resetWord()
+                }
             }
 
             KeyType.CASE -> {
                 handleCase(ic)
                 resetWord()
             }
-            KeyType.IME_SWITCH -> {
-                finalizeComposition()
-                switchInputMethod()
-                resetWord()
-            }
-
             KeyType.NUM_OR_KANA -> when {
                 flick == Flick.UP -> {
                     finalizeComposition()
@@ -541,23 +545,11 @@ class FlickImeService : InputMethodService(), FlickKeyboardView.Listener {
 
                 else -> {
                     finalizeComposition()
-                    mode = if (mode == KeyLayouts.Mode.NUMBER) {
-                        KeyLayouts.Mode.KANA
-                    } else {
-                        KeyLayouts.Mode.NUMBER
-                    }
+                    mode = KeyLayouts.nextNumberMode(mode)
                     updateLayout()
                     resetWord()
                 }
             }
-            KeyType.SETTINGS -> when (flick) {
-                Flick.UP -> cycleOneHandedMode()
-                else -> {
-                    finalizeComposition()
-                    openSettings()
-                }
-            }
-
             // 左右で文節を移動、上下で文節の区切りを伸縮する（Mozc 本来のキー操作に合わせている）
             KeyType.CONVERT -> mozcSession?.let { session ->
                 val output = when (flick) {
@@ -582,7 +574,12 @@ class FlickImeService : InputMethodService(), FlickKeyboardView.Listener {
 
     override fun onKeyRepeat(key: KeySpec) {
         val ic = currentInputConnection ?: return
-        if (key.type == KeyType.BACKSPACE) handleBackspace(ic)
+        when (key.type) {
+            KeyType.BACKSPACE -> handleBackspace(ic)
+            KeyType.CURSOR_LEFT -> moveCursor(KeyEvent.KEYCODE_DPAD_LEFT)
+            KeyType.CURSOR_RIGHT -> moveCursor(KeyEvent.KEYCODE_DPAD_RIGHT)
+            else -> Unit
+        }
     }
 
     private fun handleChar(

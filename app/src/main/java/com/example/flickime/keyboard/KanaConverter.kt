@@ -8,6 +8,23 @@ package com.example.flickime.keyboard
  */
 object KanaConverter {
 
+    /**
+     * 半角の英数字・記号（U+0021〜U+007E）を全角（U+FF01〜U+FF5E）にする。
+     * この2つはコードポイントが 0xFEE0 ずれているだけ。半角スペースだけは
+     * 対応する全角が離れた位置（U+3000）にあるので個別に扱う。
+     */
+    fun toFullWidthAscii(s: String): String = buildString {
+        for (c in s) {
+            append(
+                when (c) {
+                    ' ' -> '　'
+                    in '!'..'~' -> c + 0xFEE0
+                    else -> c
+                },
+            )
+        }
+    }
+
     /** ひらがな（U+3041〜U+3096）はカタカナ（U+30A1〜U+30F6）とコードポイントが 0x60 ずれているだけ。 */
     fun toKatakana(s: String): String = buildString {
         for (c in s) {
