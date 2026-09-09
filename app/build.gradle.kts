@@ -1,24 +1,53 @@
+import java.util.Properties
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
 }
 
+// リリース署名の情報は keystore/keystore.properties から読む（.gitignore 済み、リポジトリには含めない）。
+// ファイルが無いビルド環境（CI や他の開発者の手元）でも assembleDebug 等は動くように、
+// 無ければ黙って release の signingConfig を付けないだけにする。
+val keystorePropertiesFile = rootProject.file("keystore/keystore.properties")
+val keystoreProperties = Properties().apply {
+    if (keystorePropertiesFile.exists()) {
+        keystorePropertiesFile.inputStream().use { load(it) }
+    }
+}
+
 android {
+    // namespace（R クラスの生成パッケージ）は既存コードの package 宣言と合わせて据え置き、
+    // applicationId（Play ストア上のアプリの識別子）だけを実際に公開できる値に変更している。
+    // 両者が一致している必要はない。
     namespace = "com.example.flickime"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.example.flickime"
+        applicationId = "com.takumin29.flickime"
         minSdk = 24
         targetSdk = 35
         versionCode = 1
         versionName = "0.1.0"
     }
 
+    signingConfigs {
+        if (keystorePropertiesFile.exists()) {
+            create("release") {
+                storeFile = file("../keystore/${keystoreProperties["storeFile"]}")
+                storePassword = keystoreProperties["storePassword"] as String
+                keyAlias = keystoreProperties["keyAlias"] as String
+                keyPassword = keystoreProperties["keyPassword"] as String
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            if (keystorePropertiesFile.exists()) {
+                signingConfig = signingConfigs.getByName("release")
+            }
         }
     }
 

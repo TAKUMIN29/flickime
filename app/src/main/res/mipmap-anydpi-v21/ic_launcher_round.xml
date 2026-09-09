@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- API 26未満（アダプティブアイコン非対応）向けの背景＋前景を1枚にまとめたアイコン。 -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <path
+        android:fillColor="@color/ime_accent"
+        android:pathData="M24,0 L84,0 A24,24 0 0 1 108,24 L108,84 A24,24 0 0 1 84,108 L24,108 A24,24 0 0 1 0,84 L0,24 A24,24 0 0 1 24,0 Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M47,42 L61,42 A5,5 0 0 1 66,47 L66,61 A5,5 0 0 1 61,66 L47,66 A5,5 0 0 1 42,61 L42,47 A5,5 0 0 1 47,42 Z" />
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M54,26 L61,38 L47,38 Z M54,82 L47,70 L61,70 Z M26,54 L38,61 L38,47 Z M82,54 L70,47 L70,61 Z" />
+</vector>

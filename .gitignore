@@ -11,3 +11,10 @@ captures/
 # Claude Code / agent harness state (not project source)
 .agents/
 .claude/
+
+# 署名鍵・パスワード。絶対にコミットしない（紛失するとアプリを更新できなくなる／
+# 漏洩すると第三者が同じ applicationId で偽の更新を配布できてしまう）。
+keystore/
+*.jks
+*.keystore
+keystore.properties
