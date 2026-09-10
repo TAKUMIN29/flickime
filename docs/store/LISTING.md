@@ -77,12 +77,14 @@ Play Console の要件（512×512アイコン、1024×500フィーチャーグ�
 ## プライバシーポリシー URL
 
 ```
-https://claude.ai/code/artifact/74a6012b-dd29-4b45-95eb-6aaa2ff1bcdd
+https://takumin29.github.io/flickime/privacy-policy.html
 ```
 
-上記は Artifact として発行した暫定URL。「共有」メニューで公開設定を確認したうえで、
+リポジトリの GitHub Pages（`docs/` を配信）で公開している恒久URL。
 Play Console のプライバシーポリシー欄にそのまま貼り付けられる。
 第9条の連絡先メールアドレスは takumin2929@gmail.com を記入済み。
+ソースは `docs/privacy-policy.html`。内容を変える場合はこのファイルを編集して push すれば
+数分で同じURLに反映される。
 
 ## データセーフティ フォームの回答案
 
