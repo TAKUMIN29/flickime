@@ -611,7 +611,7 @@ class FlickImeService : InputMethodService(), FlickKeyboardView.Listener {
         val text = key.output(flick) ?: key.output(Flick.CENTER) ?: return
         // パスワード欄では変換エンジンに文字を渡さない（学習・予測に残さないため）
         if (kanjiConversionEnabled && mode == KeyLayouts.Mode.KANA && !passwordField) {
-            sendMozcKana(text, alternates)
+            sendMozcKana(ic, text, alternates)
             lastCommitted = text
             return
         }
@@ -913,21 +913,48 @@ class FlickImeService : InputMethodService(), FlickKeyboardView.Listener {
     }
 
     /** かな1文字を Mozc セッションへ送る。セッションが無ければここで開始する。 */
-    private fun sendMozcKana(text: String, alternates: List<FlickCandidate> = emptyList()) {
+    private fun sendMozcKana(ic: InputConnection, text: String, alternates: List<FlickCandidate> = emptyList()) {
         var session = mozcSession ?: startMozcSession()
+        if (session == null) {
+            // Mozc が使えない。変換なしで直接コミットし、最低限「何も入力できない」状態には
+            // 陥らないようにする。
+            commit(ic, text)
+            onWordCharCommitted(text)
+            return
+        }
         var output = session.sendKanaCharacter(text, alternates)
         if (output.isSessionLost) {
             // セッションが失われていた場合はここで打ち直す。そのまま流すと
             // この1打鍵が黙って捨てられてしまう。
             recoverLostSession()
             session = startMozcSession()
+            if (session == null) {
+                commit(ic, text)
+                onWordCharCommitted(text)
+                return
+            }
             output = session.sendKanaCharacter(text, alternates)
         }
         composedChars += ComposedChar(text, alternates)
         applyMozcOutput(output)
     }
 
-    private fun startMozcSession(): MozcSession {
+    /**
+     * 新しい変換セッションを開始する。Mozc エンジンが使える状態でなければ null を返す。
+     *
+     * 通常は onCreate() で一度だけ初期化されるが、実機で初回の初期化（辞書データの展開や
+     * ネイティブ側の読み込み）が失敗すると、そのプロセスが生きている間ずっと Mozc への
+     * すべての呼び出しが黙って空振りし、フリック自体は反応するのに文字だけ一切入力できなく
+     * なる（MozcEngine.eval は初期化状態を確認せずに呼び出すため）。ここで打鍵のたびに
+     * ensureInitialized を呼び直すことで、一度失敗していても自動的に再挑戦できるようにする
+     * （成功していれば ensureInitialized は即座に返るのでコストはない）。
+     */
+    private fun startMozcSession(): MozcSession? {
+        MozcEngine.ensureInitialized(applicationContext)
+        if (!MozcEngine.isReady) {
+            Log.w(TAG, "Mozc エンジンが初期化できていないため、かな漢字変換を使わず直接入力します")
+            return null
+        }
         composingBase = minOf(selStart, selEnd)
         val session = MozcSession()
         session.create(mobile = true)
