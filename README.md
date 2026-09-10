@@ -1,8 +1,29 @@
+<div align="center">
+
+<img src="docs/store/icon-512.png" width="120" height="120" alt="フリックIME のアイコン">
+
 # フリックIME (FlickIME)
 
-Android 用の日本語フリック入力キーボード。Windows の `Win+V`（クリップボード履歴）と
-`Ctrl+Z` / `Ctrl+Y`（元に戻す・やり直し）に相当する機能をキーボード上に載せている。
+**Android 用の日本語フリック入力キーボード**
+
+[![Stars](https://img.shields.io/github/stars/TAKUMIN29/flickime?style=flat&logo=github)](https://github.com/TAKUMIN29/flickime/stargazers)
+[![Release](https://img.shields.io/github/v/release/TAKUMIN29/flickime?label=release)](https://github.com/TAKUMIN29/flickime/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/TAKUMIN29/flickime/total?label=downloads)](https://github.com/TAKUMIN29/flickime/releases/latest)
+[![License](https://img.shields.io/github/license/TAKUMIN29/flickime)](LICENSE)
+
+Windows の `Win+V`（クリップボード履歴）と `Ctrl+Z` / `Ctrl+Y`（元に戻す・やり直し）に相当する機能をキーボード上に載せている。
 UI は一般的なフリック入力方式（指を置いたキーを離すまで固定し、十字のポップアップで候補を示す）を採用している。
+
+[ダウンロード](https://github.com/TAKUMIN29/flickime/releases/latest) ・
+[機能](#機能) ・
+[使い方](#使い方) ・
+[ビルド方法](#ビルド)
+
+日本語 ・ [English](README.en.md)
+
+</div>
+
+---
 
 ## 使用イメージ
 
