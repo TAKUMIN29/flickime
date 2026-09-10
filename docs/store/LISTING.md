@@ -82,8 +82,7 @@ https://claude.ai/code/artifact/74a6012b-dd29-4b45-95eb-6aaa2ff1bcdd
 
 上記は Artifact として発行した暫定URL。「共有」メニューで公開設定を確認したうえで、
 Play Console のプライバシーポリシー欄にそのまま貼り付けられる。
-第9条の連絡先メールアドレスは `REPLACE_WITH_CONTACT_EMAIL` のままなので、
-実際のメールアドレスに差し替えてから公開すること。
+第9条の連絡先メールアドレスは takumin2929@gmail.com を記入済み。
 
 ## データセーフティ フォームの回答案
 
