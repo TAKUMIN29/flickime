@@ -10,6 +10,12 @@ UI は一般的なフリック入力方式（指を置いたキーを離すま�
 
 ![操作の様子](docs/demo.gif)
 
+紹介動画（フリック入力・誤フリックの校正候補・全画面グリッド・元に戻す/全選択/全コピー の実演）:
+
+<video src="https://github.com/TAKUMIN29/flickime/raw/master/docs/promo.mp4" controls width="360"></video>
+
+[docs/promo.mp4](docs/promo.mp4) を直接ダウンロードしても再生できる。
+
 | キーボード | 変換候補 | 候補の一覧表示 |
 | --- | --- | --- |
 | ![キーボード](docs/keyboard.png) | ![変換候補](docs/conversion.png) | ![候補の一覧](docs/candidates.png) |
