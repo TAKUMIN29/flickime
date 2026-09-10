@@ -935,6 +935,17 @@ class FlickImeService : InputMethodService(), FlickKeyboardView.Listener {
             }
             output = session.sendKanaCharacter(text, alternates)
         }
+        // 打ち直しても受け付けられなかった場合の最後の受け皿。かな1文字を AS_IS で送ると
+        // 変換エンジンは必ず未確定文字列を返すので、結果も未確定文字列も無い応答は
+        // 「このキーは処理されなかった」ことを意味する。ここで打った文字を直接確定させないと、
+        // キーは光るのに文字が一切入らない状態になる。
+        if (!output.hasResult() && !output.hasPreedit()) {
+            Log.w(TAG, "変換エンジンが打鍵を受け付けませんでした。直接入力します: $text")
+            recoverLostSession()
+            commit(ic, text)
+            onWordCharCommitted(text)
+            return
+        }
         composedChars += ComposedChar(text, alternates)
         applyMozcOutput(output)
     }
@@ -955,9 +966,12 @@ class FlickImeService : InputMethodService(), FlickKeyboardView.Listener {
             Log.w(TAG, "Mozc エンジンが初期化できていないため、かな漢字変換を使わず直接入力します")
             return null
         }
-        composingBase = minOf(selStart, selEnd)
         val session = MozcSession()
-        session.create(mobile = true)
+        if (!session.create(mobile = true)) {
+            Log.w(TAG, "変換セッションを作成できませんでした。かな漢字変換を使わず直接入力します")
+            return null
+        }
+        composingBase = minOf(selStart, selEnd)
         mozcSession = session
         updateLayout() // 空白キーを「変換」キーに差し替える
         return session
@@ -1173,7 +1187,7 @@ class FlickImeService : InputMethodService(), FlickKeyboardView.Listener {
             // 読みごとにセッションを作ると数が増えすぎて、変換エンジンが古いセッションを
             // 整理する際に入力中のセッションまで巻き添えにする。1つを使い回す。
             val scratch = MozcSession()
-            scratch.create()
+            if (!scratch.create()) return@execute
             val corrections = try {
                 readings
                     .mapNotNull { MozcSession.predict(scratch, it) }

@@ -77,10 +77,14 @@ class MozcSession {
      * 画面に出す入力セッションでのみ使う。校正候補を作る使い捨てセッションでは、
      * 変換結果が変わって並び順の判断がぶれないよう既定のままにしておく。
      */
-    fun create(mobile: Boolean = false): Output {
+    fun create(mobile: Boolean = false): Boolean {
         val output = MozcEngine.eval(
             Input.newBuilder().setType(Input.CommandType.CREATE_SESSION).build(),
         )
+        // セッション ID が返らない応答は、変換エンジンがまだ辞書を読み込み終えていないなどで
+        // セッションを作れなかったことを意味する。これを見逃すと存在しないセッションへキーを
+        // 送り続けることになり、打鍵が黙って捨てられる。
+        if (output.isSessionLost || !output.hasId() || output.id == 0L) return false
         sessionId = output.id
         if (mobile) {
             MozcEngine.eval(
@@ -95,10 +99,11 @@ class MozcSession {
                     .build(),
             )
         }
-        return output
+        return true
     }
 
     fun destroy() {
+        if (sessionId == 0L) return
         MozcEngine.eval(
             Input.newBuilder()
                 .setType(Input.CommandType.DELETE_SESSION)
